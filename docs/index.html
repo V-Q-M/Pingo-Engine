@@ -1,0 +1,1680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pingo Engine</title>
+<meta name="description" content="A tiny 2D engine for pixel games, written in C++ with raylib. Build your scenes while the game runs, then press play.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #140f26;
+    --bg-deep: #0d0a1b;
+    --surface: #221a3f;
+    --surface-2: #2d2455;
+    --outline: #07050f;
+    --text: #f3efff;
+    --muted: #b6aed8;
+    --cyan: #00f9ff;
+    --yellow: #ffe51a;
+    --green: #3dff14;
+    --red: #ff2c22;
+    --pink: #ff7ad9;
+    --body: "Nunito", "Trebuchet MS", -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    /* The three kinds of scenes always wear the same color */
+    --menu: var(--pink);
+    --tileset: var(--green);
+    --normal: var(--cyan);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+
+  body {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.65;
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.9) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 70% 60%, rgba(0, 249, 255, 0.7) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 45% 85%, rgba(255, 229, 26, 0.6) 0 1px, transparent 1.5px);
+    background-size: 180px 180px, 260px 260px, 340px 340px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img { max-width: 100%; display: block; }
+
+  /* Tilted cards must not make the page scroll sideways */
+  main { overflow-x: clip; }
+
+  /* Grid children may shrink below their content, so wide tabs and code scroll inside them */
+  .hero > *, .cards > *, .gallery > *, .feature > *, .switcher > *,
+  .steps > *, .play > *, .keys > *, .install > * { min-width: 0; }
+
+  a { color: var(--cyan); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+  p { margin: 0 0 14px; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    padding: 1px 6px;
+    background: var(--bg-deep);
+    border: 2px solid var(--outline);
+    border-radius: 6px;
+    color: var(--yellow);
+    white-space: nowrap;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* ---------- Pixel font ---------- */
+
+  /* Relative, so the hidden screen reader text stays inside scrolling tab bars */
+  .px { position: relative; display: inline-block; line-height: 0; }
+
+  .px canvas, .icon canvas { display: inline-block; vertical-align: middle; image-rendering: pixelated; }
+
+  .px canvas { margin-bottom: 0.18em; }
+
+  .icon { display: inline-block; vertical-align: middle; line-height: 0; }
+
+  /* ---------- Top bar ---------- */
+
+  .topbar {
+    position: sticky;
+    top: 14px;
+    z-index: 50;
+    margin: 14px auto 0;
+    width: min(1180px, calc(100% - 28px));
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 10px 14px 10px 18px;
+    background: rgba(34, 26, 63, 0.9);
+    backdrop-filter: blur(8px);
+    border: 3px solid var(--outline);
+    border-radius: 18px;
+    box-shadow: 0 6px 0 var(--outline);
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+
+  .topbar nav { display: flex; gap: 4px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+
+  .topbar nav a {
+    padding: 6px 11px;
+    border-radius: 10px;
+    color: var(--muted);
+    font-weight: 800;
+    font-size: 15px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .topbar nav a:hover { background: var(--surface-2); color: var(--text); }
+
+  .topbar nav a.cta { background: var(--yellow); color: var(--outline); box-shadow: 0 3px 0 #b39d00; }
+
+  /* ---------- Buttons ---------- */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 24px;
+    border: 3px solid var(--outline);
+    border-radius: 16px;
+    font-size: 19px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .btn:hover { transform: translateY(-3px) rotate(-1deg); }
+
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--outline); }
+
+  .btn-yellow { background: var(--yellow); box-shadow: 0 6px 0 var(--outline); }
+
+  .btn-plain { background: var(--surface-2); box-shadow: 0 6px 0 var(--outline); }
+
+  .segmented {
+    display: inline-flex;
+    padding: 4px;
+    gap: 4px;
+    background: var(--bg-deep);
+    border: 3px solid var(--outline);
+    border-radius: 14px;
+  }
+
+  .segmented button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 4px 16px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font: 800 16px var(--body);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+  }
+
+  .segmented button:hover { transform: translateY(-1px); background: var(--surface); }
+
+  .segmented button.active { background: var(--yellow); color: var(--outline); box-shadow: 0 3px 0 #b39d00; }
+
+  .segmented button.active kbd { box-shadow: 0 2px 0 var(--outline); }
+
+  /* ---------- Sprites ---------- */
+
+  .sprite {
+    --s: 3;
+    display: block;
+    width: calc(var(--w) * 1px * var(--s));
+    height: calc(var(--h) * 1px * var(--s));
+    background-image: var(--atlas);
+    background-repeat: no-repeat;
+    background-size: calc(var(--aw) * 1px * var(--s)) calc(var(--ah) * 1px * var(--s));
+    image-rendering: pixelated;
+    animation: idle calc(var(--frames) * var(--speed)) steps(var(--frames)) infinite;
+  }
+
+  @keyframes idle {
+    from { background-position: 0 0; }
+    to { background-position: calc(var(--frames) * var(--w) * -1px * var(--s)) 0; }
+  }
+
+  .pingo { --atlas: url(img/pingo_atlas.png); --w: 64; --h: 48; --aw: 384; --ah: 96; --frames: 6; --speed: 180ms; }
+  .witch { --atlas: url(img/witch_ghost_atlas.png); --w: 64; --h: 64; --aw: 256; --ah: 64; --frames: 4; --speed: 200ms; }
+  .ghost { --atlas: url(img/simple_ghost_atlas.png); --w: 48; --h: 48; --aw: 241; --ah: 48; --frames: 5; --speed: 160ms; }
+
+  .flip { transform: scaleX(-1); }
+
+  .bob { animation: bob 2.4s ease-in-out infinite; }
+
+  @keyframes bob { 50% { transform: translateY(-8px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sprite, .bob { animation: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* ---------- Speech bubbles ---------- */
+
+  /*
+   * Drawn like an engine window: a 7x7 pixel frame with stepped corners,
+   * stretched as a border image. The tail is a second tiny pixel image that
+   * sits on the border line and covers it, so bubble and tail share one
+   * outline. Every art pixel is 3 CSS pixels.
+   */
+  .bubble {
+    position: relative;
+    display: inline-block;
+    padding: 6px 10px;
+    border: 9px solid transparent;
+    border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' shape-rendering='crispEdges'%3E%3Cg fill='%23d9d2ff'%3E%3Crect x='2' y='0' width='3' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='5' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='3'/%3E%3Crect x='6' y='2' width='1' height='3'/%3E%3Crect x='1' y='5' width='1' height='1'/%3E%3Crect x='5' y='5' width='1' height='1'/%3E%3Crect x='2' y='6' width='3' height='1'/%3E%3C/g%3E%3Cg fill='%231c1733'%3E%3Crect x='2' y='1' width='3' height='1'/%3E%3Crect x='1' y='2' width='5' height='3'/%3E%3Crect x='2' y='5' width='3' height='1'/%3E%3C/g%3E%3C/svg%3E") 3 fill / 9px stretch;
+    filter: drop-shadow(0 5px 0 var(--outline));
+    text-align: left;
+    font-size: 18px;
+    line-height: 0;
+  }
+
+  .bubble::after {
+    content: "";
+    position: absolute;
+    image-rendering: pixelated;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+  }
+
+  /* Tail pointing down, centered */
+  .bubble.down::after {
+    left: calc(50% - 7px);
+    top: calc(100% + 6px);
+    width: 15px;
+    height: 9px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='3' shape-rendering='crispEdges'%3E%3Cg fill='%23d9d2ff'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3C/g%3E%3Cg fill='%231c1733'%3E%3Crect x='1' y='0' width='3' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Tail pointing left, towards a sprite next to the bubble */
+  .bubble.left::after {
+    left: -18px;
+    top: calc(50% - 10px);
+    width: 12px;
+    height: 21px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='7' shape-rendering='crispEdges'%3E%3Cg fill='%23d9d2ff'%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='5' width='1' height='1'/%3E%3Crect x='3' y='6' width='1' height='1'/%3E%3C/g%3E%3Cg fill='%231c1733'%3E%3Crect x='3' y='1' width='1' height='5'/%3E%3Crect x='2' y='2' width='1' height='3'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Wrapped lines inside a bubble need a little air */
+  .bubble .px canvas { margin-top: 3px; margin-bottom: 3px; }
+
+  /* A sprite that says something */
+  .chat {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    margin: 34px 0 0;
+  }
+
+  .chat .bubble { max-width: 560px; }
+
+  /* ---------- Hero ---------- */
+
+  .hero {
+    width: min(1180px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 80px 0 90px;
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 3px solid var(--outline);
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--green);
+  }
+
+  .hero h1 { margin: 26px 0 18px; font-size: 76px; line-height: 1; }
+
+  .hero .lead { margin: 0 0 34px; max-width: 520px; font-size: 20px; color: var(--muted); }
+
+  .hero .lead strong { color: var(--text); }
+
+  .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+
+  .game-window {
+    position: relative;
+    background: var(--outline);
+    border: 3px solid var(--outline);
+    border-radius: 20px;
+    box-shadow: 10px 12px 0 var(--cyan);
+    transform: rotate(1.5deg);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .game-window:hover { transform: rotate(0deg) scale(1.02); }
+
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .titlebar .dot { width: 12px; height: 12px; border-radius: 3px; background: var(--red); }
+  .titlebar .dot:nth-child(2) { background: var(--yellow); }
+  .titlebar .dot:nth-child(3) { background: var(--green); }
+  .titlebar .title { margin-left: 8px; font-weight: 800; color: var(--muted); }
+
+  .stage {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: url(img/map.png) center / cover no-repeat;
+    image-rendering: pixelated;
+    border-radius: 0 0 16px 16px;
+    overflow: hidden;
+  }
+
+  .stage .say {
+    position: absolute;
+    left: 50%;
+    top: 7%;
+    width: 84%;
+    text-align: center;
+    transform: translateX(-50%);
+    animation: pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.4s;
+  }
+
+  .stage .bubble { text-align: center; }
+
+  @keyframes pop { from { transform: translateX(-50%) scale(0.2); opacity: 0; } }
+
+  .stage .cast {
+    position: absolute;
+    inset: auto 0 8% 0;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: flex-end;
+  }
+
+  .stage .cast > div:nth-child(1) { animation-delay: -0.8s; }
+  .stage .cast > div:nth-child(3) { animation-delay: -1.6s; }
+
+  /* ---------- Sections ---------- */
+
+  section { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 70px 0; }
+
+  .section-title { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; flex-wrap: wrap; }
+
+  .section-title h2 { margin: 0; font-size: 44px; line-height: 1; }
+
+  .kicker {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 2px 12px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 2px solid var(--outline);
+    color: var(--yellow);
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .section-intro { margin: 0 0 44px; max-width: 700px; color: var(--muted); font-size: 19px; }
+
+  .section-intro strong { color: var(--text); }
+
+  h3 { margin: 0 0 10px; font-size: 22px; line-height: 1.2; }
+
+  h3 .icon { margin-right: 8px; }
+
+  .muted { color: var(--muted); }
+
+  kbd {
+    display: inline-block;
+    padding: 0 8px;
+    font-family: var(--body);
+    font-weight: 900;
+    font-size: 0.85em;
+    line-height: 1.5;
+    color: var(--outline);
+    background: #fff;
+    border: 2px solid var(--outline);
+    border-radius: 8px;
+    box-shadow: 0 3px 0 var(--outline);
+    white-space: nowrap;
+  }
+
+  .divider {
+    height: 12px;
+    width: min(1180px, calc(100% - 40px));
+    margin: 0 auto;
+    background: repeating-linear-gradient(90deg, var(--surface-2) 0 12px, transparent 12px 24px);
+    opacity: 0.7;
+  }
+
+  /* ---------- Screenshots ---------- */
+
+  .shot {
+    --shade: var(--cyan);
+    --tilt: 0deg;
+    margin: 0;
+    background: var(--outline);
+    border: 3px solid var(--outline);
+    border-radius: 16px;
+    box-shadow: 8px 9px 0 var(--shade);
+    transform: rotate(var(--tilt));
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s;
+    overflow: hidden;
+  }
+
+  .shot:hover { transform: rotate(0deg) translateY(-4px); box-shadow: 11px 13px 0 var(--shade); }
+
+  .shot img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    image-rendering: pixelated;
+    cursor: zoom-in;
+  }
+
+  .shot figcaption {
+    padding: 10px 14px 12px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  .shot figcaption strong { color: var(--text); }
+
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; }
+
+  .gallery.two { grid-template-columns: repeat(2, 1fr); }
+
+  .gallery .shot:nth-child(3n+1) { --tilt: -1deg; }
+  .gallery .shot:nth-child(3n+2) { --tilt: 0.8deg; --shade: var(--yellow); }
+  .gallery .shot:nth-child(3n) { --tilt: -0.6deg; --shade: var(--pink); }
+
+  /* Text next to a big screenshot */
+  .feature {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 50px;
+    align-items: center;
+    margin-bottom: 60px;
+  }
+
+  .feature.flip-side > :first-child { order: 2; }
+
+  .feature ul, .card ul { margin: 0; padding-left: 20px; }
+
+  .feature li, .card li { margin-bottom: 6px; }
+
+  .feature li::marker, .card li::marker { color: var(--yellow); }
+
+  /* ---------- Cards ---------- */
+
+  .card {
+    --tilt: -1deg;
+    --shade: var(--cyan);
+    position: relative;
+    background: var(--surface);
+    border: 3px solid var(--outline);
+    border-radius: 22px;
+    box-shadow: 8px 9px 0 var(--shade);
+    transform: rotate(var(--tilt));
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s;
+  }
+
+  .card:hover { transform: rotate(0deg) translateY(-6px); box-shadow: 11px 14px 0 var(--shade); }
+
+  .card .shot { margin: 12px 12px 0; box-shadow: none; transform: none; border-radius: 12px; }
+
+  .card .body { padding: 18px 22px 22px; }
+
+  .card p { color: var(--muted); font-size: 16px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; }
+
+  .type-menu { --shade: var(--menu); --tilt: -1.2deg; }
+  .type-tileset { --shade: var(--tileset); --tilt: 1deg; }
+  .type-normal { --shade: var(--normal); --tilt: -0.7deg; }
+
+  .type-tag {
+    display: inline-block;
+    padding: 1px 10px;
+    border: 2px solid var(--outline);
+    border-radius: 999px;
+    color: var(--outline);
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .tag-menu { background: var(--menu); }
+  .tag-tileset { background: var(--tileset); }
+  .tag-normal { background: var(--normal); }
+
+  /* ---------- Scene switcher ---------- */
+
+  .switcher {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  .engine-window {
+    background: #12101c;
+    border: 3px solid var(--outline);
+    border-radius: 16px;
+    box-shadow: 10px 12px 0 var(--yellow);
+    overflow: hidden;
+  }
+
+  .engine-tabs { display: flex; background: #12101c; border-bottom: 3px solid #2b2840; overflow-x: auto; }
+
+  .engine-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 10px 7px;
+    border: 0;
+    border-right: 2px solid #2b2840;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+
+  .engine-tab:hover { opacity: 0.9; background: #1c1930; }
+
+  .engine-tab.active { opacity: 1; border-bottom-color: var(--yellow); }
+
+  .engine-tab .px canvas { margin-bottom: 0; }
+
+  .engine-window img { width: 100%; aspect-ratio: 16 / 9; image-rendering: pixelated; cursor: zoom-in; }
+
+  .switch-info {
+    padding: 24px 26px;
+    background: var(--surface);
+    border: 3px solid var(--outline);
+    border-radius: 20px;
+    box-shadow: 0 8px 0 var(--outline);
+  }
+
+  .switch-info h3 { margin: 12px 0 8px; font-size: 26px; }
+
+  .switch-info p { color: var(--muted); }
+
+  .switch-info dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 16px 0 0; font-size: 15px; }
+
+  .switch-info dt { font-weight: 900; color: var(--text); }
+
+  .switch-info dd { margin: 0; color: var(--muted); }
+
+  /* ---------- Compare table ---------- */
+
+  .compare-wrap { overflow-x: auto; margin-top: 60px; }
+
+  .compare {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--surface);
+    border: 3px solid var(--outline);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 0 var(--outline);
+  }
+
+  .compare th, .compare td { padding: 14px 18px; text-align: left; vertical-align: top; border-bottom: 2px solid var(--bg); }
+
+  .compare tr:last-child td { border-bottom: 0; }
+
+  .compare thead th { background: var(--surface-2); vertical-align: middle; }
+
+  @media (min-width: 961px) {
+    .compare thead th:first-child { white-space: nowrap; }
+  }
+
+  .compare td:first-child { font-weight: 900; white-space: nowrap; }
+
+  .compare td { color: var(--muted); }
+
+  /* ---------- Steps ---------- */
+
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; counter-reset: step; }
+
+  .step { position: relative; }
+
+  .step .num {
+    position: absolute;
+    z-index: 2;
+    top: -16px;
+    left: -12px;
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    background: var(--yellow);
+    border: 3px solid var(--outline);
+    border-radius: 12px;
+    box-shadow: 0 4px 0 var(--outline);
+    transform: rotate(-8deg);
+  }
+
+  .step .shot { --shade: var(--surface-2); }
+
+  .step h3 { margin-top: 20px; font-size: 19px; }
+
+  .step p { color: var(--muted); font-size: 15px; }
+
+  /* ---------- Play toggle ---------- */
+
+  .play {
+    display: grid;
+    grid-template-columns: 1fr 1.35fr;
+    gap: 50px;
+    align-items: center;
+    padding: 40px;
+    background: var(--surface);
+    border: 3px solid var(--outline);
+    border-radius: 28px;
+    box-shadow: 0 10px 0 var(--outline);
+  }
+
+  .play .shot { --shade: var(--green); }
+
+  .play .shot img { transition: filter 0.3s; }
+
+  .play .shot img.swap { animation: swap 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  @keyframes swap { from { transform: scale(0.95); filter: brightness(1.7); } }
+
+  .play .note { margin-top: 18px; color: var(--muted); font-size: 15px; }
+
+  /* ---------- Keys ---------- */
+
+  .keys { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; }
+
+  .keys .card { --tilt: 0deg; }
+
+  .keys table { width: 100%; border-collapse: collapse; font-size: 15px; }
+
+  .keys td { padding: 7px 0; border-bottom: 2px dashed var(--surface-2); vertical-align: top; }
+
+  .keys tr:last-child td { border-bottom: 0; }
+
+  .keys td:first-child { width: 44%; padding-right: 12px; }
+
+  .keys td:last-child { color: var(--muted); }
+
+  /* ---------- Install ---------- */
+
+  .install { display: grid; grid-template-columns: repeat(2, 1fr); gap: 34px; align-items: start; }
+
+  .terminal {
+    margin: 16px 0 10px;
+    background: #0b0918;
+    border: 3px solid var(--outline);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .terminal .bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    background: var(--surface-2);
+  }
+
+  .terminal .bar i { width: 10px; height: 10px; border-radius: 3px; background: var(--red); }
+  .terminal .bar i:nth-child(2) { background: var(--yellow); }
+  .terminal .bar i:nth-child(3) { background: var(--green); }
+
+  .terminal .copy {
+    margin-left: auto;
+    padding: 2px 10px;
+    border: 2px solid var(--outline);
+    border-radius: 8px;
+    background: var(--bg-deep);
+    color: var(--muted);
+    font: 800 13px var(--body);
+    cursor: pointer;
+  }
+
+  .terminal .copy:hover { color: var(--text); }
+
+  .terminal pre {
+    margin: 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .terminal .c { color: #7d74a8; }
+
+  .install ol { margin: 0; padding-left: 22px; }
+
+  .install li { margin-bottom: 10px; }
+
+  .install li::marker { color: var(--yellow); font-weight: 900; }
+
+  .tree {
+    margin: 0;
+    padding: 18px 20px;
+    background: #0b0918;
+    border: 3px solid var(--outline);
+    border-radius: 14px;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+
+  .tree b { color: var(--yellow); font-weight: 600; }
+
+  .tree span { color: #7d74a8; }
+
+  /* ---------- Icon strip ---------- */
+
+  .icon-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 4px; }
+
+  .icon-strip .icon {
+    padding: 8px;
+    background: #12101c;
+    border: 2px solid var(--outline);
+    border-radius: 10px;
+  }
+
+  /* ---------- Lightbox ---------- */
+
+  .lightbox {
+    width: min(1300px, 94vw);
+    max-width: none;
+    padding: 0;
+    border: 3px solid var(--outline);
+    border-radius: 18px;
+    background: var(--outline);
+    box-shadow: 12px 14px 0 var(--yellow);
+    color: var(--text);
+  }
+
+  .lightbox::backdrop { background: rgba(8, 5, 20, 0.82); backdrop-filter: blur(3px); }
+
+  .lightbox img { width: 100%; image-rendering: pixelated; cursor: zoom-out; }
+
+  .lightbox p { margin: 0; padding: 10px 16px 12px; background: var(--surface); color: var(--muted); font-weight: 700; }
+
+  footer {
+    padding: 40px 20px 70px;
+    text-align: center;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  footer .sprite { margin: 0 auto 14px; }
+
+  footer p { margin-top: 12px; font-size: 15px; }
+
+  /* ---------- Responsive ---------- */
+
+  @media (max-width: 1060px) {
+    .topbar nav a:not(.cta) { display: none; }
+    .steps { grid-template-columns: repeat(2, 1fr); row-gap: 40px; }
+  }
+
+  @media (max-width: 960px) {
+    .hero, .feature, .play, .switcher, .install, .keys { grid-template-columns: 1fr; }
+    .feature.flip-side > :first-child { order: 0; }
+    .cards, .gallery { grid-template-columns: 1fr; }
+    .gallery.two { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 54px; }
+    .section-title h2 { font-size: 34px; }
+    .stage .sprite { --s: 2; }
+    .play { padding: 24px; }
+  }
+
+  @media (max-width: 560px) {
+    .steps { grid-template-columns: 1fr; }
+    .chat { flex-direction: column; align-items: flex-start; }
+    .chat .bubble.left::after { display: none; }
+    .stage .say { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#top" aria-label="Pingo Engine, back to top">
+    <span class="sprite pingo" style="--s: 0.75"></span>
+    <span class="px" data-color="white">Pingo Engine</span>
+  </a>
+  <nav aria-label="Sections">
+    <a href="#scenes">Scenes</a>
+    <a href="#objects">Objects</a>
+    <a href="#play">Play</a>
+    <a href="#tiles">Tiles</a>
+    <a href="#menus">Menus</a>
+    <a href="#extras">Extras</a>
+    <a href="#keys">Keys</a>
+    <a class="cta" href="#install">Install</a>
+  </nav>
+</header>
+
+<main>
+
+<div class="hero" id="top">
+  <div>
+    <span class="badge"><span class="icon" data-icon="music" data-scale="2" data-color="yellow"></span>Alpha 0.0.1, fresh out of the oven</span>
+    <h1><span class="px" data-color="cyan">Pingo Engine</span></h1>
+    <p class="lead">A tiny 2D engine for pixel games, written in C++ with raylib. <strong>You build your scenes while the game runs</strong>, place characters with the mouse, and when you're happy, one key press brings the world to life.</p>
+    <div class="hero-actions">
+      <a class="btn btn-yellow" href="#scenes"><span class="px" data-color="white">Take the tour</span></a>
+      <a class="btn btn-plain" href="#install"><span class="px" data-color="white">Get it running</span></a>
+    </div>
+  </div>
+
+  <div class="game-window">
+    <div class="titlebar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="title">Pingo Legends [Development]</span>
+    </div>
+    <div class="stage">
+      <div class="say"><div class="bubble down"><span class="px" data-color="white">Hi, I am Pingo! Wanna see my engine?</span></div></div>
+      <div class="cast">
+        <div class="bob"><span class="sprite ghost"></span></div>
+        <div class="bob"><span class="sprite pingo" style="--s: 3.5"></span></div>
+        <div class="bob"><span class="sprite witch flip"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ============================================================ Scenes -->
+
+<section id="scenes">
+  <span class="kicker">The heart of it</span>
+  <div class="section-title">
+    <span class="icon" data-icon="duplicate" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="yellow">Everything is a scene</span></h2>
+  </div>
+  <p class="section-intro">Your game is a bunch of scenes: a main menu, a little town, a battle. In the Development build they all sit at the top of the window <strong>like browser tabs</strong>. Click one and you're in. Every scene is also its own editor, so there is no separate tool and no export step.</p>
+
+  <div class="cards">
+    <article class="card type-menu">
+      <figure class="shot"><img src="img/dev-main-menu.png" alt="The main menu scene with the scene tabs at the top" loading="lazy"></figure>
+      <div class="body">
+        <span class="type-tag tag-menu">Menu</span>
+        <h3 style="margin-top: 10px">Texts and buttons</h3>
+        <p>Title screens and menus. Buttons jump to another scene, open the settings or quit. There is always at least one menu, and one of them is the <strong>entry point</strong> where the game starts.</p>
+      </div>
+    </article>
+
+    <article class="card type-tileset">
+      <figure class="shot"><img src="img/hub-dev.png" alt="The hub, a tileset scene, showing the number of every tile" loading="lazy"></figure>
+      <div class="body">
+        <span class="type-tag tag-tileset">Tileset</span>
+        <h3 style="margin-top: 10px">A world made of tiles</h3>
+        <p>A map built from 32 pixel tiles, like a town or an overworld. The player walks from tile to tile and the camera follows. Every tile shows its number while you build.</p>
+      </div>
+    </article>
+
+    <article class="card type-normal">
+      <figure class="shot"><img src="img/combat-dev.png" alt="The combat scene, a normal scene with heroes and enemies" loading="lazy"></figure>
+      <div class="body">
+        <span class="type-tag tag-normal">Normal</span>
+        <h3 style="margin-top: 10px">Free placement</h3>
+        <p>Characters stand wherever you drop them, pixel perfect. Heroes and enemies, health bars, a background image and its own music. Great for battles.</p>
+      </div>
+    </article>
+  </div>
+
+  <div class="chat">
+    <span class="sprite pingo bob" style="--s: 2"></span>
+    <div class="bubble left"><span class="px" data-color="white">Psst! You can click the tabs below, just like in the engine.</span></div>
+  </div>
+</section>
+
+<!-- ============================================================ Switch -->
+
+<section id="switch" style="padding-top: 20px">
+  <div class="section-title">
+    <span class="icon" data-icon="pointer" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="green">Switching is one click</span></h2>
+  </div>
+  <p class="section-intro">Jump from a tile world into a battle and back without restarting anything. The tab tells you where you are, the lock icon tells you whether the scene is protected. Go on, try it:</p>
+
+  <div class="switcher">
+    <div class="engine-window">
+      <div class="engine-tabs" role="tablist" aria-label="Scenes">
+        <button class="engine-tab active" role="tab" aria-selected="true" data-scene="main_menu"><span class="icon" data-icon="lock" data-scale="2"></span><span class="px" data-color="white">Main Menu</span></button>
+        <button class="engine-tab" role="tab" aria-selected="false" data-scene="hub"><span class="icon" data-icon="lock" data-scale="2"></span><span class="px" data-color="white">Hub</span></button>
+        <button class="engine-tab" role="tab" aria-selected="false" data-scene="combat"><span class="icon" data-icon="lock" data-scale="2"></span><span class="px" data-color="white">Combat</span></button>
+        <button class="engine-tab" role="tab" aria-selected="false" data-scene="forest"><span class="icon" data-icon="unlock" data-scale="2"></span><span class="px" data-color="white">Forest</span></button>
+        <button class="engine-tab" role="tab" aria-selected="false" data-scene="caverns" aria-label="Crystal Caverns"><span class="icon" data-icon="unlock" data-scale="2"></span><span class="px" data-color="white">Crysta</span><span class="icon" data-icon="ellipsis" data-scale="2"></span></button>
+      </div>
+      <img id="switch-image" src="img/dev-main-menu.png" alt="The main menu scene">
+    </div>
+
+    <div class="switch-info" aria-live="polite">
+      <span id="switch-tag" class="type-tag tag-menu">Menu</span>
+      <h3 id="switch-title">Main Menu</h3>
+      <p id="switch-text"></p>
+      <dl>
+        <dt>File</dt><dd><code id="switch-file">scenes/main_menu.json</code></dd>
+        <dt>Editor</dt><dd id="switch-editor"></dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="compare-wrap">
+    <table class="compare">
+      <thead>
+        <tr>
+          <th><span class="px" data-color="white">Tileset or Normal?</span></th>
+          <th><span class="type-tag tag-tileset">Tileset</span></th>
+          <th><span class="type-tag tag-normal">Normal</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>The world</td><td>A grid of tiles from <code>maps/&lt;id&gt;.txt</code>, one digit per tile</td><td>Open space on top of a background image</td></tr>
+        <tr><td>Moving around</td><td>The player steps tile by tile, water and rocks block the way, the camera follows</td><td>Characters stay exactly where you placed them, pixel perfect</td></tr>
+        <tr><td>While you build</td><td>Click a tile, type a digit or pick from the tile menu</td><td>Select, drag, add and delete characters with the object editor</td></tr>
+        <tr><td>Size</td><td>Columns and rows, 1 to 99 each, changeable any time</td><td>One screen, 320 by 180 pixels</td></tr>
+        <tr><td>Extras</td><td>Tile names and walkability from <code>tilesets/overworld.json</code></td><td>Heroes and enemies, health bars, music from the scene file</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ Create -->
+
+<section id="create">
+  <div class="section-title">
+    <span class="icon" data-icon="edit" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="cyan">Make a new scene</span></h2>
+  </div>
+  <p class="section-intro">Hit the <strong>+</strong> right next to the last tab. Two tiny windows later you're standing in your new scene.</p>
+
+  <div class="steps">
+    <div class="step">
+      <span class="num"><span class="px" data-color="white">1</span></span>
+      <figure class="shot"><img src="img/new-scene-type.png" alt="New scene window with name and type dropdown" loading="lazy"></figure>
+      <h3>Name and type</h3>
+      <p>Give it a name and pick <span class="type-tag tag-menu">Menu</span> <span class="type-tag tag-tileset">Tileset</span> or <span class="type-tag tag-normal">Normal</span> from the dropdown.</p>
+    </div>
+    <div class="step">
+      <span class="num"><span class="px" data-color="white">2</span></span>
+      <figure class="shot"><img src="img/new-scene-template.png" alt="Template dropdown with None and Default" loading="lazy"></figure>
+      <h3>Pick a template</h3>
+      <p><strong>None</strong> starts empty and black. <strong>Default</strong> copies the scene you already know: Main Menu, Hub or Combat.</p>
+    </div>
+    <div class="step">
+      <span class="num"><span class="px" data-color="white">3</span></span>
+      <figure class="shot"><img src="img/new-scene-options.png" alt="Options of a new tileset: columns and rows" loading="lazy"></figure>
+      <h3>Tweak the options</h3>
+      <p>Each type brings its own: a tileset asks for columns and rows, a menu can become the entry point.</p>
+    </div>
+    <div class="step">
+      <span class="num"><span class="px" data-color="white">4</span></span>
+      <figure class="shot"><img src="img/new-tileset-forest.png" alt="The new Forest tileset scene, already open" loading="lazy"></figure>
+      <h3>You're in!</h3>
+      <p>Create switches right into it. The new tab is unlocked, so you can start editing at once.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ Tabs -->
+
+<section id="tabs" style="padding-top: 20px">
+  <div class="section-title">
+    <span class="icon" data-icon="grab" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="pink">Tab tricks</span></h2>
+  </div>
+  <p class="section-intro">Right click any tab for its menu: <strong>Edit, Duplicate, Lock and Delete</strong>. Everything you change lands straight in <code>assets/scenes/scenes.json</code>.</p>
+
+  <div class="gallery">
+    <figure class="shot"><img src="img/tab-menu.png" alt="Right click menu of the Forest tab" loading="lazy"><figcaption><strong>The tab menu.</strong> Edit, Duplicate, Lock and Delete, each with its own little icon.</figcaption></figure>
+    <figure class="shot"><img src="img/tab-menu-locked.png" alt="Menu of a locked tab with Edit and Delete greyed out" loading="lazy"><figcaption><strong>Locked scenes</strong> can't be edited or deleted, those items turn grey. Unlock whenever you like.</figcaption></figure>
+    <figure class="shot"><img src="img/edit-background.png" alt="Edit scene window with the background dropdown open" loading="lazy"><figcaption><strong>Pick a background.</strong> Every image in <code>assets/backgrounds</code> shows up in the list. None keeps it black.</figcaption></figure>
+    <figure class="shot"><img src="img/shrink-dialog.png" alt="Dialog warning that shrinking can erase some tiles" loading="lazy"><figcaption><strong>Resize tilesets.</strong> Growing fills up with empty tiles, shrinking asks first, because it can erase some.</figcaption></figure>
+    <figure class="shot"><img src="img/edit-menu-entry.png" alt="Edit window of a menu with the entry point checkbox" loading="lazy"><figcaption><strong>Entry point.</strong> Tick it on any menu and all the others let go. Delete that menu and the next one takes over.</figcaption></figure>
+    <figure class="shot"><img src="img/delete-scene.png" alt="Delete dialog saying this cannot be undone" loading="lazy"><figcaption><strong>Delete</strong> always asks, because it can't be undone. The last menu can never be deleted.</figcaption></figure>
+  </div>
+
+  <div class="feature" style="margin-top: 60px; margin-bottom: 0">
+    <div>
+      <h3>So many scenes!</h3>
+      <p class="muted">When the tab bar fills up, long names get politely shortened with a little <span class="icon" data-icon="ellipsis" data-scale="2"></span> while short ones keep their full width. <strong>Duplicate</strong> copies a scene with all of its files, handy for trying out a variation without breaking the original.</p>
+    </div>
+    <figure class="shot" style="--shade: var(--pink)"><img src="img/new-normal-none.png" alt="Five tabs, two of them shortened with an ellipsis, and an empty black scene" loading="lazy"><figcaption>A fresh Normal scene from the <strong>None</strong> template: empty, black and ready.</figcaption></figure>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ Objects -->
+
+<section id="objects">
+  <span class="kicker">Normal scenes</span>
+  <div class="section-title">
+    <span class="icon" data-icon="pointer" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="yellow">Build with objects</span></h2>
+  </div>
+  <p class="section-intro">In a Normal scene you arrange your characters right on the battlefield. <strong>Everything saves the moment you let go</strong>, and object types are shared by all scenes, so a new enemy can show up anywhere.</p>
+
+  <div class="feature">
+    <div>
+      <h3><span class="icon" data-icon="pointer" data-scale="3" data-color="yellow"></span>Pick it up, move it</h3>
+      <ul>
+        <li><strong>Click</strong> a character: four arrows, its coordinates and its name appear.</li>
+        <li><strong>Drag</strong> it with the mouse, the cursor turns into a grabbing hand.</li>
+        <li><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> nudge by one pixel, with <kbd>Shift</kbd> by ten.</li>
+        <li>Characters are drawn by their feet, so whoever stands lower appears in front.</li>
+      </ul>
+    </div>
+    <div class="gallery two">
+      <figure class="shot" style="--tilt: -1deg"><img src="img/object-select.png" alt="Pingo selected with arrows and coordinates" loading="lazy"><figcaption><strong>Selected</strong></figcaption></figure>
+      <figure class="shot" style="--tilt: 1deg; --shade: var(--yellow)"><img src="img/object-drag.png" alt="Pingo being dragged with the grab cursor" loading="lazy"><figcaption><strong>Dragging</strong></figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature flip-side">
+    <div>
+      <h3><span class="icon" data-icon="duplicate" data-scale="3" data-color="yellow"></span>Add anything</h3>
+      <p class="muted"><strong>Right click into empty space</strong> and the Add menu lists every character type from <code>assets/characters</code>. Pick one and it appears exactly where you clicked.</p>
+      <p class="muted">Right click a type in that menu to <strong>duplicate</strong> or <strong>delete</strong> it.</p>
+    </div>
+    <div class="gallery two">
+      <figure class="shot" style="--tilt: 1deg; --shade: var(--pink)"><img src="img/object-add-menu.png" alt="Add menu with Ghost, Pingi, Pingo, Rolli, Witch and New" loading="lazy"><figcaption><strong>Add menu</strong></figcaption></figure>
+      <figure class="shot" style="--tilt: -1deg; --shade: var(--green)"><img src="img/object-type-menu.png" alt="Type menu with Duplicate and Delete next to the add menu" loading="lazy"><figcaption><strong>Type menu</strong></figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature">
+    <div>
+      <h3><span class="icon" data-icon="edit" data-scale="3" data-color="yellow"></span>Invent a new object</h3>
+      <p class="muted">The last item, <strong>+New</strong>, opens a little form: name, size, health and color. You get a colorful placeholder you can place and test right away, long before its sprite is drawn. <strong>Health 0</strong> makes it indestructible, like a crate or a wall.</p>
+    </div>
+    <div class="gallery two">
+      <figure class="shot" style="--tilt: -1deg; --shade: var(--cyan)"><img src="img/object-new-form.png" alt="New object form with name Crate, size, health and colors" loading="lazy"><figcaption><strong>New object</strong></figcaption></figure>
+      <figure class="shot" style="--tilt: 1deg; --shade: var(--green)"><img src="img/object-dummy.png" alt="A green placeholder crate placed in the scene" loading="lazy"><figcaption><strong>Placed and selected</strong></figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature flip-side">
+    <div>
+      <h3><span class="icon" data-icon="delete" data-scale="3" data-color="yellow"></span>Duplicate, swap, delete</h3>
+      <p class="muted"><strong>Right click a character</strong> for Duplicate, Swap Team (heroes and enemies trade places) and Delete. <kbd>Del</kbd> or <kbd>Backspace</kbd> deletes the selection too, and deleting always asks first.</p>
+    </div>
+    <div class="gallery two">
+      <figure class="shot" style="--tilt: 1deg; --shade: var(--yellow)"><img src="img/object-menu.png" alt="Character menu with Duplicate, Swap Team and Delete" loading="lazy"><figcaption><strong>Character menu</strong></figcaption></figure>
+      <figure class="shot" style="--tilt: -1deg; --shade: var(--red)"><img src="img/object-delete-dialog.png" alt="Dialog asking Delete Ghost, are you sure" loading="lazy"><figcaption><strong>Are you sure?</strong></figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature" style="margin-bottom: 0">
+    <div>
+      <h3><span class="icon" data-icon="search" data-scale="3" data-color="yellow"></span>Oops? Undo!</h3>
+      <p class="muted">As soon as something changed, <strong>Changes detected</strong> lights up in the corner. <kbd>Z</kbd> steps back, <kbd>Y</kbd> steps forward again, as often as you like while the scene is open.</p>
+    </div>
+    <figure class="shot" style="--shade: var(--yellow)"><img src="img/object-moved.png" alt="Changes detected and Z Undo in the top right corner" loading="lazy"><figcaption>The editor keeps a history of every step.</figcaption></figure>
+  </div>
+
+  <div class="chat">
+    <span class="sprite ghost bob" style="--s: 2"></span>
+    <div class="bubble left"><span class="px" data-color="white">Built something? Now watch it move!</span></div>
+  </div>
+</section>
+
+<!-- ============================================================ Play -->
+
+<section id="play" style="padding-top: 30px">
+  <div class="play">
+    <div>
+      <div class="section-title">
+        <span class="icon" data-icon="sound" data-scale="5" data-color="yellow"></span>
+        <h2><span class="px" data-color="green">Press play</span></h2>
+      </div>
+      <p class="muted" style="font-size: 18px">While you build, the world holds its breath. <kbd>Shift</kbd> + <kbd>Enter</kbd> plays the open scene exactly like the Debugging build, <kbd>Shift</kbd> + <kbd>Esc</kbd> puts you back into the editor, right in the scene you're in.</p>
+      <div class="segmented" role="group" aria-label="Mode">
+        <button type="button" class="active" data-play="img/combat-dev.png">Building</button>
+        <button type="button" data-play="img/simulate-combat.png"><kbd>Shift</kbd> + <kbd>Enter</kbd></button>
+      </div>
+      <p class="note">The tabs step aside and the scene name moves to the top left. The little <strong>Development</strong> label stays, so you never mix it up with the real game.</p>
+    </div>
+    <figure class="shot"><img id="play-image" src="img/combat-dev.png" alt="The combat scene while building"></figure>
+  </div>
+
+  <div class="gallery" style="margin-top: 60px">
+    <figure class="shot"><img src="img/simulate-hub.png" alt="Pingo walking through the hub while playing" loading="lazy"><figcaption><strong>Walk around.</strong> Scene changes stay in play mode: return to the menu, press Play, and you're still testing.</figcaption></figure>
+    <figure class="shot"><img src="img/pause-menu.png" alt="Pause menu with Continue, Settings and Return to Main Menu" loading="lazy"><figcaption><strong>Pause menu.</strong> <kbd>Esc</kbd> pauses. Return to Main Menu takes you to the entry point.</figcaption></figure>
+    <figure class="shot"><img src="img/settings-menu.png" alt="Settings with volume, music, fullscreen, FPS and hitboxes" loading="lazy"><figcaption><strong>Settings.</strong> Volume, music, fullscreen, plus FPS and hitboxes for testing. They're remembered in <code>settings.json</code>.</figcaption></figure>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ Tiles -->
+
+<section id="tiles">
+  <span class="kicker">Tileset scenes</span>
+  <div class="section-title">
+    <span class="icon" data-icon="edit" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="green">Paint tiles</span></h2>
+  </div>
+  <p class="section-intro">Every tile wears its number. <strong>Click a tile and type a digit</strong>, or right click it and pick from the list. There is no save button: each change is written instantly.</p>
+
+  <div class="gallery two">
+    <figure class="shot" style="--tilt: -1deg; --shade: var(--green)"><img src="img/tile-menu.png" alt="Tile menu listing 0 Empty to 7 Rock, the current tile marked with an arrow" loading="lazy"><figcaption><strong>The tile menu</strong> shows every tile with its number and name. The arrow marks the tile that's there now.</figcaption></figure>
+    <figure class="shot" style="--tilt: 1deg; --shade: var(--cyan)"><img src="img/tile-typed.png" alt="Two water tiles typed into the grass" loading="lazy"><figcaption><strong>Type 5</strong> and a pond appears. A click next to the map clears the selection.</figcaption></figure>
+  </div>
+
+  <div class="feature" style="margin-top: 60px; margin-bottom: 0">
+    <div>
+      <h3>Maps are just text</h3>
+      <p class="muted">A map is a plain text file, one digit per tile. What the digits mean, which tiles you can walk on and where they sit in the sprite atlas lives in <code>assets/tilesets/overworld.json</code>. Lines starting with <code>#</code> are comments.</p>
+    </div>
+    <pre class="tree" aria-label="Excerpt of maps/hub.txt"><span># 0 empty  1 grass  2 flowers  3 path
+# 4 stone  5 water  6 bridge   7 rock</span>
+<b>77777777777777777777</b>
+<b>71121111311115511127</b>
+<b>71111111311115511117</b>
+<b>71211144444115511117</b>
+<b>73333344444366663337</b></pre>
+  </div>
+</section>
+
+<!-- ============================================================ Menus -->
+
+<section id="menus" style="padding-top: 20px">
+  <span class="kicker">Menu scenes</span>
+  <div class="section-title">
+    <span class="icon" data-icon="music" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="pink">Menus without code</span></h2>
+  </div>
+  <p class="section-intro">Menus work with the same editor as characters: click to select, drag to move, right click to add. <kbd>Shift</kbd> + click runs a button, so you can test where it leads.</p>
+
+  <div class="gallery">
+    <figure class="shot"><img src="img/menu-select.png" alt="The Quit button selected with arrows and coordinates" loading="lazy"><figcaption><strong>Move things.</strong> Play, Settings and Quit are built in, so they can be moved but not changed.</figcaption></figure>
+    <figure class="shot"><img src="img/menu-add.png" alt="Add menu with Text and Button" loading="lazy"><figcaption><strong>Right click empty space</strong> to add a text or a button.</figcaption></figure>
+    <figure class="shot"><img src="img/menu-new-button.png" alt="New button window with the text Credits" loading="lazy"><figcaption><strong>Type the label,</strong> then Next.</figcaption></figure>
+    <figure class="shot"><img src="img/menu-button-scene.png" alt="Scene list to choose where the button leads" loading="lazy"><figcaption><strong>Choose where it leads:</strong> any scene from the tab bar.</figcaption></figure>
+    <figure class="shot"><img src="img/menu-element-menu.png" alt="Element menu with Edit, Duplicate and Delete" loading="lazy"><figcaption><strong>Right click an element</strong> to edit, duplicate or delete it.</figcaption></figure>
+    <figure class="shot"><img src="img/menu-edit-button.png" alt="Edit button window with text, color swatches and scene" loading="lazy"><figcaption><strong>Edit</strong> text, color and target scene at any time.</figcaption></figure>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ Extras -->
+
+<section id="extras">
+  <div class="section-title">
+    <span class="icon" data-icon="search" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="cyan">Little extras</span></h2>
+  </div>
+  <p class="section-intro">The small things that make it feel like a real engine.</p>
+
+  <div class="cards">
+    <article class="card" style="--shade: var(--yellow)">
+      <figure class="shot"><img src="img/splash.png" alt="Splash screen: Pingo on black, Made with Pingo Engine, Alpha 0.0.1" loading="lazy"></figure>
+      <div class="body">
+        <h3>A proper splash screen</h3>
+        <p>Release and Debugging builds greet you with Pingo, “Made with Pingo Engine” and the version. It fades in and out, any key or click skips it.</p>
+      </div>
+    </article>
+
+    <article class="card" style="--tilt: 1deg; --shade: var(--pink)">
+      <div class="body">
+        <h3>Three build modes</h3>
+        <ul>
+          <li><strong>Release:</strong> the finished game, no tools.</li>
+          <li><strong>Debugging:</strong> playable, plus FPS, hitboxes and scene keys.</li>
+          <li><strong>Development:</strong> the world stands still. Scene tabs, editors and a free camera you steer with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrows. It starts right at the entry point.</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="card" style="--tilt: -0.8deg; --shade: var(--green)">
+      <div class="body">
+        <h3>A font with feelings</h3>
+        <p>Every letter on screen comes from one hand-drawn pixel font in six colors, with umlauts, punctuation, arrows and these icons:</p>
+        <div class="icon-strip" aria-label="Icons of the pixel font">
+          <span class="icon" data-icon="lock" data-scale="3"></span>
+          <span class="icon" data-icon="unlock" data-scale="3"></span>
+          <span class="icon" data-icon="sound" data-scale="3"></span>
+          <span class="icon" data-icon="sound-off" data-scale="3" data-color="grey"></span>
+          <span class="icon" data-icon="music" data-scale="3"></span>
+          <span class="icon" data-icon="music-off" data-scale="3" data-color="grey"></span>
+          <span class="icon" data-icon="search" data-scale="3"></span>
+          <span class="icon" data-icon="pointer" data-scale="3" data-color="yellow"></span>
+          <span class="icon" data-icon="grab" data-scale="3" data-color="yellow"></span>
+          <span class="icon" data-icon="delete" data-scale="3"></span>
+          <span class="icon" data-icon="edit" data-scale="3"></span>
+          <span class="icon" data-icon="duplicate" data-scale="3"></span>
+          <span class="icon" data-icon="ellipsis" data-scale="3"></span>
+        </div>
+      </div>
+    </article>
+
+    <article class="card" style="--tilt: 0.8deg; --shade: var(--cyan)">
+      <div class="body">
+        <h3>A cursor that cares</h3>
+        <p>The mouse is a little pixel hand <span class="icon" data-icon="pointer" data-scale="2"></span> that glows yellow <span class="icon" data-icon="pointer" data-scale="2" data-color="yellow"></span> over anything clickable and grabs <span class="icon" data-icon="grab" data-scale="2" data-color="yellow"></span> while you drag.</p>
+      </div>
+    </article>
+
+    <article class="card" style="--tilt: -1deg; --shade: var(--yellow)">
+      <div class="body">
+        <h3>Characters from JSON</h3>
+        <p>A character is a small file in <code>assets/characters</code>: sprite atlas, frames, animation speed, move speed, hitbox and shadow. Collisions, health bars and the selection ring come for free.</p>
+      </div>
+    </article>
+
+    <article class="card" style="--tilt: 1.2deg; --shade: var(--pink)">
+      <div class="body">
+        <h3>Music per scene</h3>
+        <p>A Normal scene names its track in its file. Entering another scene switches the music, and if both use the same track it simply keeps playing.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============================================================ Keys -->
+
+<section id="keys" style="padding-top: 20px">
+  <div class="section-title">
+    <span class="icon" data-icon="grab" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="yellow">All the keys</span></h2>
+  </div>
+  <p class="section-intro">A cheat sheet to keep next to your keyboard.</p>
+
+  <div class="keys">
+    <div class="card">
+      <div class="body">
+        <h3>Everywhere</h3>
+        <table>
+          <tr><td><kbd>Shift</kbd> + <kbd>Enter</kbd></td><td>Play the open scene (Development build)</td></tr>
+          <tr><td><kbd>Shift</kbd> + <kbd>Esc</kbd></td><td>Back to building, in the current scene</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close the open window, otherwise pause</td></tr>
+          <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</td><td>Move the free camera, <kbd>Shift</kbd> for speed</td></tr>
+          <tr><td><kbd>F1</kbd> <kbd>F2</kbd> <kbd>F3</kbd></td><td>Entry point, Hub, Combat (not in Release)</td></tr>
+          <tr><td>Right click a tab</td><td>Edit, Duplicate, Lock, Delete</td></tr>
+          <tr><td>Click <strong>+</strong></td><td>New scene</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="--shade: var(--yellow)">
+      <div class="body">
+        <h3>While building</h3>
+        <table>
+          <tr><td>Click / drag</td><td>Select and move a character or menu element</td></tr>
+          <tr><td>Arrows, <kbd>Shift</kbd></td><td>Move the selection by 1 or 10 pixels</td></tr>
+          <tr><td>Right click</td><td>Add menu in empty space, actions on an object</td></tr>
+          <tr><td><kbd>Del</kbd> / <kbd>Backspace</kbd></td><td>Delete the selection</td></tr>
+          <tr><td><kbd>Z</kbd> / <kbd>Y</kbd></td><td>Undo / redo</td></tr>
+          <tr><td><kbd>0</kbd> to <kbd>9</kbd></td><td>Set the selected tile</td></tr>
+          <tr><td><kbd>Shift</kbd> + click</td><td>Run a menu button</td></tr>
+          <tr><td><kbd>H</kbd></td><td>Show or hide the key help</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ Install -->
+
+<section id="install">
+  <span class="kicker">Let's go</span>
+  <div class="section-title">
+    <span class="icon" data-icon="unlock" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="green">Get it running</span></h2>
+  </div>
+  <p class="section-intro">You need a C++20 compiler, CMake 3.20 or newer, <strong>raylib</strong> and <strong>nlohmann/json</strong>. On macOS, Homebrew brings all of them in one line.</p>
+
+  <div class="install">
+    <div class="card" style="--tilt: 0deg">
+      <div class="body">
+        <h3>With the terminal</h3>
+        <ol>
+          <li>Install the tools and libraries:
+            <div class="terminal"><div class="bar"><i></i><i></i><i></i><button class="copy" type="button">Copy</button></div><pre>brew install cmake raylib nlohmann-json</pre></div>
+          </li>
+          <li>Get the code:
+            <div class="terminal"><div class="bar"><i></i><i></i><i></i><button class="copy" type="button">Copy</button></div><pre>git clone https://github.com/V-Q-M/Pingo-Engine.git
+cd Pingo-Engine</pre></div>
+          </li>
+          <li>Configure, build and start, here in the Development mode:
+            <div class="terminal"><div class="bar"><i></i><i></i><i></i><button class="copy" type="button">Copy</button></div><pre>cmake -S . -B build -DPINGO_BUILD_MODE=Development
+cmake --build build
+cd build &amp;&amp; ./PingoLegends</pre></div>
+          </li>
+        </ol>
+        <p class="muted">Start the game from inside <code>build</code>: it loads <code>assets/</code> relative to the working directory, and every build copies the assets there. Swap <code>Development</code> for <code>Debugging</code> or <code>Release</code> to build the other modes, ideally each in its own build folder.</p>
+      </div>
+    </div>
+
+    <div class="card" style="--tilt: 0deg; --shade: var(--yellow)">
+      <div class="body">
+        <h3>With CLion</h3>
+        <ol>
+          <li>Install the libraries as shown on the left (CLion brings its own CMake).</li>
+          <li><strong>Open</strong> the <code>Pingo-Engine</code> folder. CLion picks up the three CMake profiles that come with the project: <strong>Release</strong>, <strong>Debugging</strong> and <strong>Development</strong>.</li>
+          <li>Choose a profile in the toolbar, pick the <strong>PingoLegends</strong> run configuration and press <strong>Run</strong>.</li>
+        </ol>
+        <p class="muted">Each profile builds into its own folder, like <code>cmake-build-development</code>, and sets <code>PINGO_BUILD_MODE</code> for you. Assets are copied on every run, so a tweaked JSON file always reaches the game.</p>
+
+        <h3 style="margin-top: 26px">Good to know</h3>
+        <ul>
+          <li>In <strong>Development</strong>, the editors save into the build folder <em>and</em> back into the project's <code>assets/</code>, so your changes survive the next build.</li>
+          <li>The engine is made and tested on macOS. On Linux or Windows, install raylib and nlohmann/json so CMake's <code>find_package</code> can find them.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature" style="margin-top: 70px; margin-bottom: 0">
+    <div>
+      <h3>Where things live</h3>
+      <p class="muted">The engine lives in <code>src/Engine</code> and knows nothing about Pingo. The game in <code>src/Game</code> defines the three scene types and registers them. Everything you build in the editors ends up as plain files in <code>assets/</code>, easy to read and easy to commit.</p>
+      <div class="chat" style="margin-top: 24px">
+        <span class="sprite witch bob" style="--s: 1.5"></span>
+        <div class="bubble left"><span class="px" data-color="white">Have fun building!</span></div>
+      </div>
+    </div>
+    <pre class="tree" aria-label="Project folders"><b>assets/</b>
+  backgrounds/   <span>images for the Background dropdown</span>
+  characters/    <span>one JSON file per character type</span>
+  maps/          <span>tile maps of tileset scenes</span>
+  scenes/        <span>scenes.json plus menu and normal scenes</span>
+  templates/     <span>Default templates of each type</span>
+  tilesets/      <span>tile names and walkability</span>
+  fonts/ music/ sprites/
+<b>src/</b>
+  Engine/        <span>scenes, editors, renderer, UI</span>
+  Game/          <span>scene types, characters, splash</span>
+  main.cpp</pre>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <span class="sprite pingo bob" style="--s: 2"></span>
+  <span class="px" data-color="grey">Made with Pingo Engine</span>
+  <p><a href="https://github.com/V-Q-M/Pingo-Engine">github.com/V-Q-M/Pingo-Engine</a></p>
+</footer>
+
+<dialog class="lightbox" id="lightbox">
+  <img src="" alt="">
+  <p></p>
+</dialog>
+
+<script>
+  // Draws text with the engine's font atlas, exactly like FontRenderer
+  const PixelFont = (() => {
+    const CELL = 8;
+    const COLOR_ROWS = { white: 0, grey: 1, red: 2, yellow: 3, cyan: 4, green: 5, pink: 2 };
+    const ICON_ROWS = { white: 0, grey: 1, yellow: 2 };
+    const ICONS = ["lock", "unlock", "sound", "sound-off", "music", "music-off", "search",
+                   "pointer", "grab", "delete", "edit", "duplicate", "ellipsis"];
+    const DIGIT_ROW = "1234567890,.:\"?!+-*/%=_&()[]←→↑↓";
+    const UMLAUTS = { "Ä": 26, "Ü": 27, "Ö": 28, "ß": 29 };
+
+    // Like FontRenderer: 7 pixels per character, a space half as wide
+    const ADVANCE = 7;
+    const SPACE = 4;
+
+    const atlas = new Image();
+    atlas.src = "img/game_font.png";
+
+    function cell(character) {
+      const upper = character === "ß" ? character : character.toUpperCase();
+      const code = upper.charCodeAt(0);
+
+      if (code >= 65 && code <= 90) return { column: code - 65, row: 0 };
+      if (upper in UMLAUTS) return { column: UMLAUTS[upper], row: 0 };
+
+      const digit = DIGIT_ROW.indexOf(upper);
+      return digit >= 0 ? { column: digit, row: 6 } : null;
+    }
+
+    function makeCanvas(width, height, scale) {
+      const ratio = Math.max(1, Math.round(window.devicePixelRatio || 1));
+      const canvas = document.createElement("canvas");
+
+      canvas.width = width * scale * ratio;
+      canvas.height = height * scale * ratio;
+      canvas.style.width = width * scale + "px";
+      canvas.style.height = height * scale + "px";
+
+      const context = canvas.getContext("2d");
+      context.imageSmoothingEnabled = false;
+
+      return { canvas, context, unit: scale * ratio };
+    }
+
+    function word(text, color, scale) {
+      const characters = Array.from(text);
+      const width = characters.length * ADVANCE + 1;
+      const { canvas, context, unit } = makeCanvas(width, CELL, scale);
+      const variant = COLOR_ROWS[color] ?? 0;
+
+      characters.forEach((character, index) => {
+        const found = cell(character);
+
+        if (!found) return;
+
+        context.drawImage(
+          atlas,
+          found.column * CELL, (found.row + variant) * CELL, CELL, CELL,
+          index * ADVANCE * unit, 0, CELL * unit, CELL * unit
+        );
+      });
+
+      // The atlas has no pink, so pink text is the red row, tinted
+      if (color === "pink") {
+        context.globalCompositeOperation = "source-atop";
+        context.fillStyle = "#ff7ad9";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      return canvas;
+    }
+
+    function icon(name, color, scale) {
+      const { canvas, context, unit } = makeCanvas(CELL, CELL, scale);
+      const row = 12 + (ICON_ROWS[color] ?? 0);
+
+      context.drawImage(atlas, ICONS.indexOf(name) * CELL, row * CELL, CELL, CELL, 0, 0, CELL * unit, CELL * unit);
+
+      return canvas;
+    }
+
+    // Every word gets its own canvas, so long headings can wrap
+    function renderText(element, scale) {
+      const text = element.dataset.text;
+      const color = element.dataset.color || "white";
+      const holder = document.createDocumentFragment();
+      const words = text.split(" ");
+
+      words.forEach((part, index) => {
+        const canvas = word(part, color, scale);
+
+        if (index < words.length - 1) {
+          canvas.style.marginRight = SPACE * scale + "px";
+        }
+
+        holder.appendChild(canvas);
+      });
+
+      return holder;
+    }
+
+    function scaleFor(element) {
+      const size = parseFloat(getComputedStyle(element.parentElement).fontSize);
+      return Math.max(1, Math.round(size / 9));
+    }
+
+    function renderAll() {
+      document.querySelectorAll(".px").forEach(element => {
+        if (!element.dataset.text) {
+          element.dataset.text = element.textContent.trim();
+        }
+
+        const label = document.createElement("span");
+        label.className = "sr-only";
+        label.textContent = element.dataset.text;
+
+        const pixels = document.createElement("span");
+        pixels.setAttribute("aria-hidden", "true");
+        pixels.appendChild(renderText(element, scaleFor(element)));
+
+        element.replaceChildren(label, pixels);
+      });
+
+      document.querySelectorAll(".icon").forEach(element => {
+        const scale = Number(element.dataset.scale || 3);
+        element.replaceChildren(icon(element.dataset.icon, element.dataset.color || "white", scale));
+      });
+    }
+
+    return { atlas, renderAll };
+  })();
+
+  if (PixelFont.atlas.complete) {
+    PixelFont.renderAll();
+  } else {
+    PixelFont.atlas.addEventListener("load", PixelFont.renderAll);
+  }
+
+  let resizeTimer;
+  let lastWidth = window.innerWidth;
+  window.addEventListener("resize", () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(PixelFont.renderAll, 150);
+  });
+
+  // Swaps an image with a small pop
+  function swapImage(image, source, alt) {
+    image.src = source;
+    image.alt = alt;
+    image.classList.remove("swap");
+    void image.offsetWidth;
+    image.classList.add("swap");
+  }
+
+  // ---------- Scene switcher ----------
+
+  const SCENES = {
+    main_menu: {
+      name: "Main Menu", type: "menu", image: "img/dev-main-menu.png", file: "scenes/main_menu.json",
+      text: "The entry point. Development starts here, and so does the game after the splash screen.",
+      editor: "Move texts and buttons, add new ones with a right click."
+    },
+    hub: {
+      name: "Hub", type: "tileset", image: "img/hub-dev.png", file: "maps/hub.txt",
+      text: "A little overworld of grass, paths, stone and water. The numbers show which tile sits where.",
+      editor: "Click a tile and type a digit, or right click for the tile menu."
+    },
+    combat: {
+      name: "Combat", type: "normal", image: "img/combat-dev.png", file: "scenes/combat.json",
+      text: "Heroes on the left, enemies on the right, each with a health bar. Battle music included.",
+      editor: "Select, drag, add, duplicate and delete characters."
+    },
+    forest: {
+      name: "Forest", type: "tileset", image: "img/new-tileset-forest.png", file: "maps/forest.txt",
+      text: "Made a minute ago with the + button and the Default template, so it starts as a copy of the hub.",
+      editor: "Same tile editor as the hub. Resize it any time in Edit."
+    },
+    caverns: {
+      name: "Crystal Caverns", type: "normal", image: "img/new-normal-none.png", file: "scenes/crystal_caverns.json",
+      text: "A fresh Normal scene from the None template: nothing in it yet, black until you pick a background.",
+      editor: "Right click to add the first character."
+    }
+  };
+
+  const TYPE_LABELS = { menu: "Menu", tileset: "Tileset", normal: "Normal" };
+
+  const switchImage = document.getElementById("switch-image");
+  const switchTabs = document.querySelectorAll(".engine-tab");
+
+  function showScene(id, animate) {
+    const scene = SCENES[id];
+
+    switchTabs.forEach(tab => {
+      const active = tab.dataset.scene === id;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active);
+    });
+
+    if (animate) {
+      swapImage(switchImage, scene.image, scene.name + " scene");
+    }
+
+    const tag = document.getElementById("switch-tag");
+    tag.textContent = TYPE_LABELS[scene.type];
+    tag.className = "type-tag tag-" + scene.type;
+
+    document.getElementById("switch-title").textContent = scene.name;
+    document.getElementById("switch-text").textContent = scene.text;
+    document.getElementById("switch-file").textContent = scene.file;
+    document.getElementById("switch-editor").textContent = scene.editor;
+  }
+
+  switchTabs.forEach(tab => tab.addEventListener("click", () => showScene(tab.dataset.scene, true)));
+  showScene("main_menu", false);
+
+  // ---------- Play toggle ----------
+
+  const playImage = document.getElementById("play-image");
+  const playButtons = document.querySelectorAll("[data-play]");
+
+  playButtons.forEach(button => button.addEventListener("click", () => {
+    playButtons.forEach(other => other.classList.toggle("active", other === button));
+
+    const playing = button.dataset.play.includes("simulate");
+    swapImage(playImage, button.dataset.play, playing ? "The combat scene while playing" : "The combat scene while building");
+  }));
+
+  // ---------- Lightbox ----------
+
+  const lightbox = document.getElementById("lightbox");
+  const lightboxImage = lightbox.querySelector("img");
+  const lightboxText = lightbox.querySelector("p");
+
+  document.addEventListener("click", event => {
+    const image = event.target.closest(".shot img, .engine-window img");
+
+    if (image && typeof lightbox.showModal === "function") {
+      const caption = image.closest("figure")?.querySelector("figcaption");
+
+      lightboxImage.src = image.currentSrc || image.src;
+      lightboxImage.alt = image.alt;
+      lightboxText.textContent = caption ? caption.textContent : image.alt;
+      lightbox.showModal();
+      return;
+    }
+
+    if (event.target.closest("#lightbox")) {
+      lightbox.close();
+    }
+  });
+
+  // ---------- Copy buttons ----------
+
+  document.querySelectorAll(".terminal .copy").forEach(button => {
+    button.addEventListener("click", async () => {
+      const text = button.closest(".terminal").querySelector("pre").textContent;
+
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copied!";
+      } catch (error) {
+        button.textContent = "Select it";
+      }
+
+      setTimeout(() => { button.textContent = "Copy"; }, 1600);
+    });
+  });
+</script>
+
+</body>
+</html>
