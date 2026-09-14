@@ -1,0 +1,14 @@
+{
+  "texture": "sprites/tiles_atlas.png",
+  "tileSize": 32,
+
+  "tiles": {
+    "1": { "name": "Grass", "walkable": true },
+    "2": { "name": "Flowers", "walkable": true },
+    "3": { "name": "Path", "walkable": true },
+    "4": { "name": "Stone", "walkable": true },
+    "5": { "name": "Water", "walkable": false },
+    "6": { "name": "Bridge", "walkable": true },
+    "7": { "name": "Rock", "walkable": false }
+  }
+}

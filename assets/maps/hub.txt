@@ -1,0 +1,26 @@
+# Hub-Welt
+#
+# Jede Zeile ist eine Reihe, jede Ziffer ein Feld. Was die Ziffern bedeuten,
+# steht im TileSet, siehe assets/tilesets/overworld.json:
+#   0  leer, nicht begehbar
+#   1  Gras
+#   2  Blumen
+#   3  Weg
+#   4  Steinboden
+#   5  Wasser, nicht begehbar
+#   6  Bruecke
+#   7  Fels, nicht begehbar
+#
+# Zeilen, die mit # beginnen, und leere Zeilen werden ignoriert.
+77777777777777777777
+71121111311115511127
+71111111311115511117
+71211144444115511117
+71111144444115511217
+73333344444366663337
+71111144444115511117
+71211144444115511117
+71111111311115512117
+71111211311115511117
+72111111312115511117
+77777777777777777777

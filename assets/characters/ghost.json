@@ -1,0 +1,21 @@
+{
+  "name": "Ghost",
+
+  "texture": "sprites/simple_ghost_atlas.png",
+
+  "frameWidth": 48,
+  "frameHeight": 48,
+  "frameCount": 5,
+
+  "animationSpeedMs": 180,
+
+  "isSolid": false,
+
+  "hitboxWidth": 31.0,
+  "hitboxHeight": 33.0,
+  "hitboxOffsetY": -1.0,
+
+  "shadowWidth": 14.0,
+  "shadowHeight": 5.0,
+  "shadowOffsetY": -0.5
+}

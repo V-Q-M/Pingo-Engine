@@ -1,0 +1,21 @@
+{
+  "name": "Witch",
+
+  "texture": "sprites/witch_ghost_atlas.png",
+
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "frameCount": 4,
+
+  "animationSpeedMs": 210,
+
+  "isSolid": true,
+
+  "hitboxWidth": 30.0,
+  "hitboxHeight": 39.0,
+  "hitboxOffsetY": -9.0,
+
+  "shadowWidth": 13.0,
+  "shadowHeight": 4.0,
+  "shadowOffsetY": 1.0
+}

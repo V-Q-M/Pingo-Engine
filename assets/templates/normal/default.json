@@ -1,0 +1,45 @@
+{
+  "music": "music/battle.wav",
+  "objects": [
+    {
+      "character": "characters/pingi.json",
+      "team": "heroes",
+      "x": 54,
+      "y": 74,
+      "health": 85
+    },
+    {
+      "character": "characters/pingo.json",
+      "team": "heroes",
+      "x": 114,
+      "y": 104
+    },
+    {
+      "character": "characters/pingo.json",
+      "team": "heroes",
+      "x": 69,
+      "y": 134,
+      "health": 40
+    },
+    {
+      "character": "characters/ghost.json",
+      "team": "enemies",
+      "x": 266,
+      "y": 74,
+      "health": 60
+    },
+    {
+      "character": "characters/witch.json",
+      "team": "enemies",
+      "x": 206,
+      "y": 104,
+      "health": 15
+    },
+    {
+      "character": "characters/ghost.json",
+      "team": "enemies",
+      "x": 251,
+      "y": 134
+    }
+  ]
+}

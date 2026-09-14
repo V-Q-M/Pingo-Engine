@@ -1,0 +1,21 @@
+{
+  "name": "Pingi",
+
+  "texture": "sprites/pingi_atlas.png",
+
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 2,
+
+  "animationSpeedMs": 180,
+
+  "isSolid": false,
+
+  "hitboxWidth": 28.0,
+  "hitboxHeight": 28.0,
+  "hitboxOffsetY": -1.0,
+
+  "shadowWidth": 11.0,
+  "shadowHeight": 4.0,
+  "shadowOffsetY": -2.0
+}

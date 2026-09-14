@@ -1,0 +1,23 @@
+{
+  "name": "Pingo",
+
+  "texture": "sprites/pingo_atlas.png",
+
+  "frameWidth": 64,
+  "frameHeight": 48,
+  "frameCount": 6,
+
+  "animationSpeedMs": 180,
+
+  "moveSpeed": 60.0,
+
+  "isSolid": true,
+
+  "hitboxWidth": 28.0,
+  "hitboxHeight": 32.0,
+  "hitboxOffsetY": -9.0,
+
+  "shadowWidth": 13.0,
+  "shadowHeight": 4.0,
+  "shadowOffsetY": 0.0
+}

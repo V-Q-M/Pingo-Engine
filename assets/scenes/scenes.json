@@ -1,0 +1,25 @@
+{
+  "scenes": [
+    {
+      "id": "main_menu",
+      "name": "Main Menu",
+      "type": "menu",
+      "background": "map.png",
+      "locked": true,
+      "entry": true
+    },
+    {
+      "id": "hub",
+      "name": "Hub",
+      "type": "tileset",
+      "locked": true
+    },
+    {
+      "id": "combat",
+      "name": "Combat",
+      "type": "normal",
+      "background": "map.png",
+      "locked": true
+    }
+  ]
+}
