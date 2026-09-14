@@ -11,6 +11,10 @@
 # production never needs merges and never runs into conflicts. Nothing is
 # checked out, the working directory stays untouched.
 #
+# production is published to its own public remote, also called production,
+# as its main branch. The first version has no parent, so the private history
+# of dev and main never reaches the public repository.
+#
 # Usage:
 #   scripts/release.sh "Alpha 0.0.2" [source-branch]
 #
@@ -69,4 +73,4 @@ fi
 git branch -f production "$commit"
 
 echo "production is now at $(git rev-parse --short production): $version"
-echo "Publish it with: git push origin production"
+echo "Publish it with: git push production production:main"
