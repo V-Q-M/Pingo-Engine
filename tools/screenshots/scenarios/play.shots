@@ -1,0 +1,99 @@
+# Group "play": simulate-combat, simulate-hub, pause-menu, settings-menu,
+# tile-menu, tile-typed, code-editor, travel-dialog.
+# The splash screen cannot be shot: it only exists outside the Development build.
+
+wait 30
+move 640 600
+wait 10
+
+# ---- Combat in play mode, pause menu and settings
+click 540 30
+wait 40
+key shift+enter
+wait 60
+key escape
+wait 40
+click 640 380
+wait 40
+move 600 400
+wait 20
+shot settings-menu
+click 640 683
+wait 40
+move 640 245
+wait 20
+shot pause-menu
+click 640 245
+wait 40
+move 1220 410
+wait 60
+shot simulate-combat
+
+# ---- Hub in play mode, the portal and its travel dialog
+key shift+escape
+wait 40
+click 370 30
+wait 40
+key shift+enter
+wait 60
+move 700 450
+hold right 100
+hold down 50
+move 720 330
+wait 40
+shot simulate-hub
+hold up 90
+hold right 85
+wait 60
+move 520 420
+wait 30
+shot travel-dialog
+click 780 405
+wait 30
+key shift+escape
+wait 40
+
+# ---- Tile editor in the hub
+rclick 590 450
+wait 30
+click 680 572
+wait 30
+move 780 385
+wait 20
+shot tile-menu
+click 700 555
+wait 30
+click 700 450
+wait 20
+key 5
+wait 30
+move 850 450
+wait 20
+shot tile-typed
+
+# ---- Code editor with the tile script of the portal
+click 1300 700
+wait 10
+rclick 1090 200
+wait 30
+click 1170 380
+wait 30
+click 1180 320
+wait 40
+key ctrl+minus
+wait 5
+key ctrl+minus
+wait 5
+key ctrl+minus
+wait 5
+key ctrl+equal
+wait 5
+key ctrl+equal
+wait 5
+type 8G
+wait 10
+move 1200 650
+wait 30
+shot code-editor
+
+quit

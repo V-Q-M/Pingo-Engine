@@ -1,21 +1,22 @@
 {
   "name": "Rolli",
-
-  "texture": "sprites/pingi_atlas.png",
-
-  "frameWidth": 32,
+  "texture": "sprites/characters/rolli_atlas.png",
+  "frameWidth": 64,
   "frameHeight": 32,
-  "frameCount": 2,
-
-  "animationSpeedMs": 180,
-
+  "frameCount": 10,
+  "animationSpeedMs": 90,
+  "moveSpeed": 60.0,
+  "maxHealth": 100,
   "isSolid": false,
-
-  "hitboxWidth": 28.0,
+  "effects": {
+    "burning": 2
+  },
+  "hitboxWidth": 32.0,
   "hitboxHeight": 28.0,
-  "hitboxOffsetY": -1.0,
-
-  "shadowWidth": 11.0,
+  "hitboxOffsetY": 0.0,
+  "hitboxOffsetX": 0.0,
+  "shadowWidth": 10.0,
   "shadowHeight": 4.0,
-  "shadowOffsetY": -2.0
+  "shadowOffsetY": -3.0,
+  "shadowOffsetX": 0.0
 }

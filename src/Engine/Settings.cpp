@@ -5,6 +5,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Soundcard.h"
+
 using json = nlohmann::json;
 
 Settings Settings::Load(const std::string &filename) {
@@ -27,6 +29,10 @@ Settings Settings::Load(const std::string &filename) {
         settings.fullscreen = j.value("fullscreen", settings.fullscreen);
         settings.showFps = j.value("showFps", settings.showFps);
         settings.showHitboxes = j.value("showHitboxes", settings.showHitboxes);
+        settings.showObjectIds = j.value("showObjectIds", settings.showObjectIds);
+
+        // An unknown card falls back to the default one
+        settings.soundcard = Soundcard::Find(j.value("soundcard", settings.soundcard)).id;
     } catch (const json::exception &) {
         return Settings{};
     }
@@ -40,7 +46,9 @@ bool Settings::Save(const std::string &filename) const {
         {"musicVolume", musicVolume},
         {"fullscreen", fullscreen},
         {"showFps", showFps},
-        {"showHitboxes", showHitboxes}
+        {"showHitboxes", showHitboxes},
+        {"showObjectIds", showObjectIds},
+        {"soundcard", soundcard}
     };
 
     std::ofstream file(filename);

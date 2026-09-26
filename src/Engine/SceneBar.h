@@ -19,17 +19,17 @@ class Engine;
 // plus their windows.
 //
 // A click on a tab switches to the scene. A right click opens a menu with
-// Edit, Duplicate, Lock and Delete, locked scenes can neither be edited nor
-// deleted. The "+" creates a new scene: first name and type, then template
-// and options of the type, e.g. the size of a map.
+// Duplicate, Edit, Lock and Delete, locked scenes can neither be edited nor
+// deleted. The "+", and Alt with T, create a new scene: first name and type,
+// then template and options of the type, e.g. the size of a map.
 //
 // Everything the bar changes goes straight into the engine's SceneCatalog.
 class SceneBar {
 public:
     // Same order as in the menu of a tab
     enum class Action {
-        Edit,
         Duplicate,
+        Edit,
 
         // Label Lock or Unlock, depending on the state
         Lock,
@@ -105,12 +105,11 @@ private:
         Type
     };
 
-    // The first fields in the edit window, the fields of the type follow
+    // The first fields in the edit window. The background only exists for types
+    // that have one, the fields of the type follow, see editTypeFields.
     enum class EditField {
         Name,
-        Background,
-
-        TypeFields
+        Background
     };
 
     void RefreshTabs(Engine &engine);
@@ -129,7 +128,11 @@ private:
     void FollowTemplate(Engine &engine);
 
     // Creates the scene from newName and newType and switches to it
-    void CreateScene(Engine &engine, std::size_t templateIndex, const std::vector<int> &values, bool entry);
+    void CreateScene(Engine &engine,
+                     std::size_t templateIndex,
+                     const std::vector<int> &values,
+                     bool entry,
+                     const std::vector<std::string> &choices);
 
     void OpenEditForm(Engine &engine, std::size_t index);
 
@@ -143,12 +146,19 @@ private:
 
     void RemoveScene(Engine &engine, const std::string &id);
 
-    // Appends the checkbox for the entry point, if the type can be one, and the
-    // options of the type to the form
-    void AddTypeFields(const SceneType &type, bool entry, const std::vector<int> &values);
+    // Appends the checkbox for the entry point, if the type can be one, the
+    // numbers of the type and a dropdown for each file it lets you choose
+    void AddTypeFields(const SceneType &type,
+                       bool entry,
+                       const std::vector<int> &values,
+                       const std::vector<std::string> &choices);
 
     // Reads the same fields back, starting at firstField
-    void ReadTypeFields(const SceneType &type, std::size_t firstField, bool &entry, std::vector<int> &values) const;
+    void ReadTypeFields(const SceneType &type,
+                        std::size_t firstField,
+                        bool &entry,
+                        std::vector<int> &values,
+                        std::vector<std::string> &choices) const;
 
     TabBar tabs;
 
@@ -175,11 +185,18 @@ private:
     // The backgrounds in the choice of the edit window, without "None" in front
     std::vector<std::string> backgroundFiles;
 
+    // For every file choice of the type the files in its dropdown
+    std::vector<std::vector<std::string>> choiceFiles;
+
+    // Where the fields of the type start in the edit window
+    std::size_t editTypeFields = 0;
+
     // From the edit window, as long as the confirmation is open
     std::string pendingName;
     std::string pendingBackground;
     bool pendingEntry = false;
     std::vector<int> pendingValues;
+    std::vector<std::string> pendingChoices;
 
     std::string sceneToRemove;
 };

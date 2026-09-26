@@ -1,15 +1,18 @@
 {
   "name": "Pingi",
 
-  "texture": "sprites/pingi_atlas.png",
+  "texture": "sprites/characters/pingi_atlas.png",
 
   "frameWidth": 32,
   "frameHeight": 32,
-  "frameCount": 2,
+  "frameCount": 7,
 
-  "animationSpeedMs": 180,
+  "animationSpeedMs": 110,
 
   "isSolid": false,
+  "effects": {
+    "burning": 2
+  },
 
   "hitboxWidth": 28.0,
   "hitboxHeight": 28.0,
@@ -17,5 +20,7 @@
 
   "shadowWidth": 11.0,
   "shadowHeight": 4.0,
-  "shadowOffsetY": -2.0
+  "shadowOffsetY": -2.0,
+  "shadowOffsetX": 0.0,
+  "shadowBounce": 1.0
 }

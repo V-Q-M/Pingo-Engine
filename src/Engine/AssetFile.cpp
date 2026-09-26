@@ -1,5 +1,6 @@
 #include "AssetFile.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <system_error>
@@ -68,4 +69,20 @@ bool DeleteAsset(const std::string &relativePath) {
 #endif
 
     return !AssetExists(relativePath);
+}
+
+std::vector<std::string> AssetFilesIn(const std::string &folder, const std::string &extension) {
+    std::vector<std::string> files;
+
+    std::error_code error;
+
+    for (const auto &entry: std::filesystem::directory_iterator("assets/" + folder, error)) {
+        if (entry.path().extension() == extension) {
+            files.push_back(folder + "/" + entry.path().filename().string());
+        }
+    }
+
+    std::sort(files.begin(), files.end());
+
+    return files;
 }

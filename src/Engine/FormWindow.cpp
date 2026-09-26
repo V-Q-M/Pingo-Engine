@@ -12,6 +12,13 @@ constexpr float FORM_LABEL_GAP = 8.0f;
 constexpr float FORM_BUTTON_GAP = 12.0f;
 constexpr float FORM_BUTTON_PADDING = 4.0f;
 constexpr float FORM_SWATCH_GAP = 3.0f;
+
+// More fields than this scroll, even if the screen would fit more
+constexpr std::size_t FORM_MAX_ROWS = 5;
+
+// The scrollbar on the right of the field rows
+constexpr float FORM_SCROLLBAR_WIDTH = 3.0f;
+constexpr float FORM_SCROLLBAR_GAP = 4.0f;
 constexpr float FORM_CHOICE_GAP = 4.0f;
 
 constexpr const char *FORM_CANCEL_LABEL = "Cancel";
@@ -25,11 +32,20 @@ constexpr Color FORM_BOX{0, 0, 0, 110};
 constexpr Color FORM_BOX_BORDER{255, 255, 255, 90};
 constexpr Color FORM_FOCUS{255, 229, 26, 255};
 constexpr Color FORM_CARET{255, 255, 255, 255};
+constexpr Color FORM_SCROLL_TRACK{0, 0, 0, 120};
+constexpr Color FORM_SCROLL_THUMB{255, 255, 255, 150};
+constexpr Color FORM_SCROLL_THUMB_HELD{255, 229, 26, 255};
 
 constexpr int FORM_VARIANT_TEXT = FontVariant::White;
 constexpr int FORM_VARIANT_ERROR = FontVariant::Red;
 constexpr int FORM_VARIANT_HOVER = FontVariant::Yellow;
 constexpr int FORM_VARIANT_TITLE = FontVariant::Cyan;
+
+// The extra item at the end of a dropdown list, like "+New" in the add menu
+constexpr int FORM_VARIANT_EXTRA = FontVariant::Grey;
+
+// The menu of an option opens slightly offset next to the mouse
+constexpr float FORM_OPTION_MENU_OFFSET = 5.0f;
 
 static int DigitCount(int value) {
     int digits = 1;
@@ -40,6 +56,18 @@ static int DigitCount(int value) {
     }
 
     return digits;
+}
+
+// How many characters a number field needs: the digits of the largest value,
+// with a negative minimum also its minus
+static int NumberLength(int minimum, int maximum) {
+    int length = DigitCount(std::max(maximum, 0));
+
+    if (minimum < 0) {
+        length = std::max(length, DigitCount(-minimum) + 1);
+    }
+
+    return length;
 }
 
 static int WidestOption(const std::vector<std::string> &options, const FontRenderer &font) {
@@ -136,35 +164,49 @@ std::size_t FormWindow::AddToggle(std::string label, bool checked) {
     return fields.size() - 1;
 }
 
+std::size_t FormWindow::AddButton(std::string label) {
+    Field field;
+    field.type = FieldType::Button;
+
+    // The caption sits on the button, the label column stays empty
+    field.text = std::move(label);
+
+    fields.push_back(std::move(field));
+
+    return fields.size() - 1;
+}
+
 void FormWindow::Clear() {
     list.Close();
+    optionMenu.Close();
     fields.clear();
     focused = 0;
     error.clear();
 }
 
-void FormWindow::Open(int viewWidth, int viewHeight, const FontRenderer &font) {
+void FormWindow::Open(int viewWidth, int viewHeight, const FontRenderer &) {
     this->viewWidth = viewWidth;
     this->viewHeight = viewHeight;
 
-    Vector2 size = Size(font);
-
-    topLeft = Renderer::SnapToPixel({(viewWidth - size.x) / 2.0f, (viewHeight - size.y) / 2.0f});
+    center = {static_cast<float>(viewWidth) / 2.0f, static_cast<float>(viewHeight) / 2.0f};
 
     open = true;
     focused = 0;
+    lastFocused = 0;
+    scroll = 0;
     hoveredButton = 0;
     error.clear();
 }
 
 void FormWindow::Close() {
     list.Close();
+    optionMenu.Close();
     open = false;
     hoveredButton = 0;
 }
 
 bool FormWindow::IsHovering() const {
-    return open && (hoveredButton != 0 || hoveringField || list.IsHovering());
+    return open && (hoveredButton != 0 || hoveringField || list.IsHovering() || optionMenu.IsHovering());
 }
 
 bool FormWindow::IsOpen() const {
@@ -172,7 +214,7 @@ bool FormWindow::IsOpen() const {
 }
 
 void FormWindow::Focus(std::size_t field) {
-    if (field < fields.size()) {
+    if (field < fields.size() && fields[field].visible) {
         focused = field;
     }
 }
@@ -202,7 +244,10 @@ void FormWindow::Type(int codepoint) {
             return;
         }
     } else if (field.type == FieldType::Number) {
-        if (!digit || static_cast<int>(field.text.size()) >= DigitCount(field.maximum)) {
+        // A minus only at the start, and only if the field allows negative numbers
+        bool minus = codepoint == '-' && field.minimum < 0 && field.text.empty();
+
+        if ((!digit && !minus) || static_cast<int>(field.text.size()) >= NumberLength(field.minimum, field.maximum)) {
             return;
         }
     } else {
@@ -215,7 +260,8 @@ void FormWindow::Type(int codepoint) {
 }
 
 void FormWindow::Erase() {
-    if (focused >= fields.size() || fields[focused].text.empty()) {
+    // The caption of a button is not typed
+    if (focused >= fields.size() || fields[focused].text.empty() || fields[focused].type == FieldType::Button) {
         return;
     }
 
@@ -259,6 +305,37 @@ void FormWindow::SetNumber(std::size_t field, int value) {
     error.clear();
 }
 
+void FormWindow::SetFieldVisible(std::size_t field, bool visible) {
+    if (field >= fields.size()) {
+        return;
+    }
+
+    fields[field].visible = visible;
+
+    if (visible) {
+        return;
+    }
+
+    if (list.IsOpen() && listField == field) {
+        list.Close();
+        optionMenu.Close();
+    }
+
+    // A hidden field cannot keep the focus, the first visible one gets it
+    if (focused == field) {
+        for (std::size_t i = 0; i < fields.size(); i++) {
+            if (fields[i].visible) {
+                focused = i;
+                break;
+            }
+        }
+    }
+}
+
+bool FormWindow::IsFieldVisible(std::size_t field) const {
+    return fields.at(field).visible;
+}
+
 bool FormWindow::IsListOpen() const {
     return list.IsOpen();
 }
@@ -273,8 +350,161 @@ void FormWindow::OpenList(std::size_t field, const FontRenderer &font) {
     listField = field;
 
     list.SetTitle(fields[field].label);
-    list.SetItems(fields[field].options);
+    SetListItems();
     list.Open({box.x, box.y + box.height + 1.0f}, viewWidth, viewHeight, font);
+}
+
+void FormWindow::SetListItems() {
+    const Field &field = fields[listField];
+
+    std::vector<std::string> items = field.options;
+
+    if (!field.extra.empty()) {
+        items.push_back(field.extra);
+    }
+
+    list.SetItems(std::move(items));
+
+    if (!field.extra.empty()) {
+        list.SetItemVariant(field.options.size(), FORM_VARIANT_EXTRA);
+    }
+}
+
+void FormWindow::OpenOptionMenu(std::size_t option, Vector2 mousePosition, const FontRenderer &font) {
+    const Field &field = fields[listField];
+
+    optionMenuOption = option;
+
+    optionMenu.SetTitle(field.options[option]);
+    optionMenu.SetItems(field.actions);
+
+    for (std::size_t i = 0; i < field.actions.size(); i++) {
+        if (i < field.actionIcons.size()) {
+            optionMenu.SetItemIcon(i, field.actionIcons[i]);
+        }
+
+        optionMenu.SetItemEnabled(i, !field.actionFilter || field.actionFilter(option, i));
+    }
+
+    optionMenu.Open(
+        {mousePosition.x + FORM_OPTION_MENU_OFFSET, mousePosition.y + FORM_OPTION_MENU_OFFSET},
+        viewWidth,
+        viewHeight,
+        font
+    );
+}
+
+FormWindow::Result FormWindow::UpdateList(Vector2 mousePosition, bool clicked, bool rightClicked, const FontRenderer &font) {
+    const Field &field = fields[listField];
+
+    // The menu of an option lies above the list. A click next to it only closes
+    // the menu, the list stays.
+    if (optionMenu.IsOpen()) {
+        int action = optionMenu.Update(mousePosition, clicked, font);
+
+        if (action == ContextMenu::NOTHING) {
+            return Result::None;
+        }
+
+        eventField = listField;
+        eventOption = optionMenuOption;
+        eventAction = static_cast<std::size_t>(action);
+
+        return Result::OptionAction;
+    }
+
+    if (rightClicked) {
+        int item = list.ItemAt(mousePosition, font);
+
+        if (item != ContextMenu::NOTHING && static_cast<std::size_t>(item) < field.options.size() &&
+            !field.actions.empty()) {
+            OpenOptionMenu(static_cast<std::size_t>(item), mousePosition, font);
+        }
+
+        return Result::None;
+    }
+
+    int item = list.Update(mousePosition, clicked, font);
+
+    if (item == ContextMenu::NOTHING) {
+        return Result::None;
+    }
+
+    // The extra item keeps the list open, so whatever it creates can be chosen
+    // right away
+    if (static_cast<std::size_t>(item) >= field.options.size()) {
+        eventField = listField;
+
+        OpenList(listField, font);
+
+        return Result::ListExtra;
+    }
+
+    SelectChoice(listField, static_cast<std::size_t>(item));
+
+    return Result::None;
+}
+
+void FormWindow::SetDropdownExtra(std::size_t field, std::string label) {
+    if (field < fields.size()) {
+        fields[field].extra = std::move(label);
+    }
+}
+
+void FormWindow::SetOptionActions(std::size_t field, std::vector<std::string> labels, std::vector<char> icons) {
+    if (field < fields.size()) {
+        fields[field].actions = std::move(labels);
+        fields[field].actionIcons = std::move(icons);
+    }
+}
+
+void FormWindow::SetOptionActionFilter(std::size_t field, std::function<bool(std::size_t, std::size_t)> filter) {
+    if (field < fields.size()) {
+        fields[field].actionFilter = std::move(filter);
+    }
+}
+
+void FormWindow::SetOptions(std::size_t field, std::vector<std::string> options, std::size_t selected) {
+    if (field >= fields.size()) {
+        return;
+    }
+
+    Field &entry = fields[field];
+
+    entry.options = std::move(options);
+    entry.choiceIndex = entry.options.empty() ? 0 : std::min(selected, entry.options.size() - 1);
+
+    error.clear();
+
+    if (list.IsOpen() && listField == field) {
+        SetListItems();
+    }
+}
+
+bool FormWindow::CloseList() {
+    if (optionMenu.IsOpen()) {
+        optionMenu.Close();
+        return true;
+    }
+
+    if (list.IsOpen()) {
+        list.Close();
+        return true;
+    }
+
+    return false;
+}
+
+std::size_t FormWindow::EventField() const {
+    return eventField;
+}
+
+std::size_t FormWindow::EventOption() const {
+    return eventOption;
+}
+
+std::size_t FormWindow::EventAction() const {
+    return eventAction;
 }
 
 bool FormWindow::IsChecked(std::size_t field) const {
@@ -300,8 +530,8 @@ const std::string &FormWindow::Text(std::size_t field) const {
 int FormWindow::Number(std::size_t field) const {
     const Field &entry = fields.at(field);
 
-    if (entry.text.empty()) {
-        return entry.minimum;
+    if (entry.text.empty() || entry.text == "-") {
+        return std::clamp(0, entry.minimum, entry.maximum);
     }
 
     // The text consists only of digits and is not longer than the maximum
@@ -327,11 +557,125 @@ float FormWindow::RowHeight(const FontRenderer &font) const {
 }
 
 float FormWindow::RowTop(std::size_t row, const FontRenderer &font) const {
-    return topLeft.y + FORM_PADDING + static_cast<float>(row) * (RowHeight(font) + FORM_ROW_GAP);
+    return TopLeft(font).y + FORM_PADDING + static_cast<float>(row) * (RowHeight(font) + FORM_ROW_GAP);
 }
 
-std::size_t FormWindow::ButtonRow() const {
-    return fields.size() + (hint.empty() ? 1 : 2);
+std::size_t FormWindow::ButtonRow(const FontRenderer &font) const {
+    return ShownRows(font) + (hint.empty() ? 1 : 2);
+}
+
+std::size_t FormWindow::FieldRow(std::size_t field) const {
+    // Row 0 is the title, the scrolled away fields above take none
+    return 1 + VisibleIndex(field) - std::min(scroll, VisibleIndex(field));
+}
+
+std::size_t FormWindow::VisibleIndex(std::size_t field) const {
+    std::size_t index = 0;
+
+    for (std::size_t i = 0; i < field && i < fields.size(); i++) {
+        if (fields[i].visible) {
+            index++;
+        }
+    }
+
+    return index;
+}
+
+// At most five rows, and never more than the viewport can hold: title, hint
+// and buttons stay, the fields in between scroll.
+std::size_t FormWindow::FittingRows(const FontRenderer &font) const {
+    float row = RowHeight(font) + FORM_ROW_GAP;
+
+    // Title, buttons and the hint row, if there is a hint
+    float taken = 2.0f * FORM_PADDING + static_cast<float>(hint.empty() ? 2 : 3) * row;
+    float free = static_cast<float>(viewHeight) - taken;
+
+    std::size_t fits = static_cast<std::size_t>(std::max(static_cast<int>(free / row), 1));
+
+    return std::min(fits, FORM_MAX_ROWS);
+}
+
+std::size_t FormWindow::ShownRows(const FontRenderer &font) const {
+    return std::min(VisibleFieldCount(), FittingRows(font));
+}
+
+bool FormWindow::IsScrollable(const FontRenderer &font) const {
+    return VisibleFieldCount() > FittingRows(font);
+}
+
+bool FormWindow::IsFieldShown(std::size_t field, const FontRenderer &font) const {
+    if (field >= fields.size() || !fields[field].visible) {
+        return false;
+    }
+
+    std::size_t index = VisibleIndex(field);
+
+    return index >= scroll && index < scroll + ShownRows(font);
+}
+
+void FormWindow::Scroll(int rows, const FontRenderer &font) {
+    std::size_t last = VisibleFieldCount() - ShownRows(font);
+    int target = static_cast<int>(scroll) + rows;
+
+    scroll = static_cast<std::size_t>(std::clamp(target, 0, static_cast<int>(last)));
+}
+
+// A click on the track jumps there and holds on to the bar, so it follows the
+// mouse until the button is released
+void FormWindow::UpdateScrollbar(Vector2 mousePosition, bool clicked, const FontRenderer &font) {
+    Rectangle track = ScrollbarBounds(font);
+
+    if (clicked && CheckCollisionPointRec(mousePosition, Expand(track, 2.0f))) {
+        draggingScroll = true;
+    }
+
+    if (draggingScroll && !IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        draggingScroll = false;
+    }
+
+    if (!draggingScroll) {
+        return;
+    }
+
+    float thumb = ScrollThumbBounds(font).height;
+    float free = track.height - thumb;
+    float steps = static_cast<float>(VisibleFieldCount() - ShownRows(font));
+
+    if (free <= 0.0f || steps <= 0.0f) {
+        return;
+    }
+
+    // The mouse holds the middle of the bar
+    float share = (mousePosition.y - track.y - thumb / 2.0f) / free;
+
+    scroll = static_cast<std::size_t>(std::clamp(std::round(share * steps), 0.0f, steps));
+}
+
+void FormWindow::ScrollTo(std::size_t field, const FontRenderer &font) {
+    if (field >= fields.size() || !fields[field].visible) {
+        return;
+    }
+
+    std::size_t index = VisibleIndex(field);
+    std::size_t rows = ShownRows(font);
+
+    if (index < scroll) {
+        scroll = index;
+    } else if (index >= scroll + rows) {
+        scroll = index - rows + 1;
+    }
+}
+
+std::size_t FormWindow::VisibleFieldCount() const {
+    return static_cast<std::size_t>(std::count_if(fields.begin(), fields.end(), [](const Field &field) {
+        return field.visible;
+    }));
+}
+
+Vector2 FormWindow::TopLeft(const FontRenderer &font) const {
+    Vector2 size = Size(font);
+
+    return Renderer::SnapToPixel({center.x - size.x / 2.0f, center.y - size.y / 2.0f});
 }
 
 float FormWindow::LabelWidth(const FontRenderer &font) const {
@@ -352,7 +696,8 @@ float FormWindow::ControlWidth(const Field &field, const FontRenderer &font) con
             return static_cast<float>(field.maxLength) * advance + 2.0f * FORM_BOX_PADDING + 1.0f;
 
         case FieldType::Number:
-            return static_cast<float>(DigitCount(field.maximum)) * advance + 2.0f * FORM_BOX_PADDING + 1.0f;
+            return static_cast<float>(NumberLength(field.minimum, field.maximum)) * advance +
+                   2.0f * FORM_BOX_PADDING + 1.0f;
 
         case FieldType::Color:
             return static_cast<float>(field.colors.size()) * (RowHeight(font) + FORM_SWATCH_GAP) - FORM_SWATCH_GAP;
@@ -369,6 +714,9 @@ float FormWindow::ControlWidth(const Field &field, const FontRenderer &font) con
         case FieldType::Toggle:
             // A square box
             return RowHeight(font);
+
+        case FieldType::Button:
+            return ButtonWidth(field.text, font);
     }
 
     return 0.0f;
@@ -393,8 +741,13 @@ Vector2 FormWindow::Size(const FontRenderer &font) const {
         ButtonWidth(confirmLabel, font) + FORM_BUTTON_GAP + ButtonWidth(FORM_CANCEL_LABEL, font)
     });
 
+    // The scrollbar needs its own column on the right
+    if (IsScrollable(font)) {
+        width += FORM_SCROLLBAR_GAP + FORM_SCROLLBAR_WIDTH;
+    }
+
     // Title, fields, buttons and the hint row, if there is a hint
-    std::size_t rows = ButtonRow() + 1;
+    std::size_t rows = ButtonRow(font) + 1;
 
     return {
         width + 2.0f * FORM_PADDING,
@@ -405,14 +758,47 @@ Vector2 FormWindow::Size(const FontRenderer &font) const {
 
 Rectangle FormWindow::Bounds(const FontRenderer &font) const {
     Vector2 size = Size(font);
+    Vector2 topLeft = TopLeft(font);
 
     return {topLeft.x, topLeft.y, size.x, size.y};
 }
 
+// The track of the scrollbar, on the right next to the field rows
+Rectangle FormWindow::ScrollbarBounds(const FontRenderer &font) const {
+    Rectangle bounds = Bounds(font);
+    float rows = static_cast<float>(ShownRows(font));
+
+    return {
+        bounds.x + bounds.width - FORM_PADDING - FORM_SCROLLBAR_WIDTH,
+        RowTop(1, font),
+        FORM_SCROLLBAR_WIDTH,
+        rows * (RowHeight(font) + FORM_ROW_GAP) - FORM_ROW_GAP
+    };
+}
+
+// The part of the track that shows where the view sits
+Rectangle FormWindow::ScrollThumbBounds(const FontRenderer &font) const {
+    Rectangle track = ScrollbarBounds(font);
+
+    float total = static_cast<float>(VisibleFieldCount());
+    float shown = static_cast<float>(ShownRows(font));
+
+    float height = std::max(track.height * shown / total, RowHeight(font) / 2.0f);
+    float free = track.height - height;
+    float steps = total - shown;
+
+    return {
+        track.x,
+        track.y + (steps > 0.0f ? free * static_cast<float>(scroll) / steps : 0.0f),
+        track.width,
+        height
+    };
+}
+
 Rectangle FormWindow::FieldBounds(std::size_t field, const FontRenderer &font) const {
     return {
-        topLeft.x + FORM_PADDING + LabelWidth(font) + FORM_LABEL_GAP,
-        RowTop(field + 1, font),
+        TopLeft(font).x + FORM_PADDING + LabelWidth(font) + FORM_LABEL_GAP,
+        RowTop(FieldRow(field), font),
         ControlWidth(fields.at(field), font),
         RowHeight(font)
     };
@@ -435,8 +821,8 @@ Rectangle FormWindow::ChoiceArrowBounds(std::size_t field, bool left, const Font
 
 Rectangle FormWindow::ConfirmBounds(const FontRenderer &font) const {
     return {
-        topLeft.x + FORM_PADDING,
-        RowTop(ButtonRow(), font),
+        TopLeft(font).x + FORM_PADDING,
+        RowTop(ButtonRow(font), font),
         ButtonWidth(confirmLabel, font),
         RowHeight(font)
     };
@@ -453,26 +839,34 @@ Rectangle FormWindow::CancelBounds(const FontRenderer &font) const {
     };
 }
 
-FormWindow::Result FormWindow::Update(Vector2 mousePosition, bool clicked, const FontRenderer &font) {
+FormWindow::Result FormWindow::Update(Vector2 mousePosition, bool clicked, const FontRenderer &font, bool rightClicked) {
     if (!open) {
         return Result::None;
     }
 
     // An open list belongs to the mouse alone, a click next to it closes it
     if (list.IsOpen()) {
-        int item = list.Update(mousePosition, clicked, font);
-
-        if (item != ContextMenu::NOTHING) {
-            SelectChoice(listField, static_cast<std::size_t>(item));
-        }
-
         hoveredButton = 0;
         hoveringField = false;
 
         while (GetCharPressed() != 0) {
         }
 
-        return Result::None;
+        return UpdateList(mousePosition, clicked, rightClicked, font);
+    }
+
+    // More fields than fit: the wheel scrolls through them, the scrollbar can
+    // be dragged
+    float wheel = GetMouseWheelMove();
+
+    if (IsScrollable(font)) {
+        if (wheel != 0.0f) {
+            Scroll(wheel > 0.0f ? -1 : 1, font);
+        }
+
+        UpdateScrollbar(mousePosition, clicked, font);
+    } else {
+        draggingScroll = false;
     }
 
     hoveredButton = 0;
@@ -483,11 +877,18 @@ FormWindow::Result FormWindow::Update(Vector2 mousePosition, bool clicked, const
         hoveredButton = 2;
     }
 
-    hoveringField = false;
+    hoveringField = draggingScroll ||
+                    (IsScrollable(font) && CheckCollisionPointRec(mousePosition, Expand(ScrollbarBounds(font), 2.0f)));
+    hoveredField = -1;
 
     for (std::size_t i = 0; i < fields.size(); i++) {
+        if (!IsFieldShown(i, font)) {
+            continue;
+        }
+
         if (CheckCollisionPointRec(mousePosition, FieldBounds(i, font))) {
             hoveringField = true;
+            hoveredField = static_cast<int>(i);
         }
 
         for (std::size_t s = 0; s < fields[i].colors.size(); s++) {
@@ -508,6 +909,10 @@ FormWindow::Result FormWindow::Update(Vector2 mousePosition, bool clicked, const
         }
 
         for (std::size_t i = 0; i < fields.size(); i++) {
+            if (!IsFieldShown(i, font)) {
+                continue;
+            }
+
             if (fields[i].type == FieldType::Color) {
                 for (std::size_t s = 0; s < fields[i].colors.size(); s++) {
                     if (CheckCollisionPointRec(mousePosition, SwatchBounds(i, s, font))) {
@@ -527,6 +932,9 @@ FormWindow::Result FormWindow::Update(Vector2 mousePosition, bool clicked, const
                        CheckCollisionPointRec(mousePosition, FieldBounds(i, font))) {
                 Focus(i);
                 OpenList(i, font);
+            } else if (fields[i].type == FieldType::Button && CheckCollisionPointRec(mousePosition, FieldBounds(i, font))) {
+                eventField = i;
+                return Result::FieldButton;
             } else if (fields[i].type == FieldType::Toggle && CheckCollisionPointRec(mousePosition, FieldBounds(i, font))) {
                 Focus(i);
                 SetChecked(i, !fields[i].checked);
@@ -544,8 +952,15 @@ FormWindow::Result FormWindow::Update(Vector2 mousePosition, bool clicked, const
         Erase();
     }
 
-    if (IsKeyPressed(KEY_TAB) && !fields.empty()) {
-        Focus((focused + 1) % fields.size());
+    // Tab skips hidden fields
+    if (IsKeyPressed(KEY_TAB) && VisibleFieldCount() > 0) {
+        std::size_t next = focused;
+
+        do {
+            next = (next + 1) % fields.size();
+        } while (!fields[next].visible);
+
+        Focus(next);
     }
 
     if (focused < fields.size() && fields[focused].type == FieldType::Color && !fields[focused].colors.empty()) {
@@ -581,6 +996,12 @@ FormWindow::Result FormWindow::Update(Vector2 mousePosition, bool clicked, const
         return Result::Confirmed;
     }
 
+    // A field that was just focused, with Tab or from outside, scrolls into view
+    if (focused != lastFocused) {
+        ScrollTo(focused, font);
+        lastFocused = focused;
+    }
+
     return Result::None;
 }
 
@@ -596,7 +1017,7 @@ void FormWindow::Draw(const FontRenderer &font) const {
     DrawRectangleRec(bounds, FORM_BACKGROUND);
     DrawRectangleLinesEx(bounds, 1.0f, FORM_BORDER);
 
-    float left = topLeft.x + FORM_PADDING;
+    float left = TopLeft(font).x + FORM_PADDING;
 
     // Without a hint row an error appears instead of the title. That way the
     // window does not grow, and the buttons do not jump away under the mouse.
@@ -609,11 +1030,38 @@ void FormWindow::Draw(const FontRenderer &font) const {
         TextSpacing::Narrow
     );
 
+    // The scrollbar next to the fields shows how much more there is
+    if (IsScrollable(font)) {
+        DrawRectangleRec(ScrollbarBounds(font), FORM_SCROLL_TRACK);
+        DrawRectangleRec(ScrollThumbBounds(font), draggingScroll ? FORM_SCROLL_THUMB_HELD : FORM_SCROLL_THUMB);
+    }
+
     for (std::size_t i = 0; i < fields.size(); i++) {
         const Field &field = fields[i];
         bool isFocused = i == focused;
 
-        font.Draw(field.label, {left, RowTop(i + 1, font) + FORM_BOX_PADDING}, FORM_VARIANT_TEXT, TextSpacing::Narrow);
+        if (!IsFieldShown(i, font)) {
+            continue;
+        }
+
+        font.Draw(field.label, {left, RowTop(FieldRow(i), font) + FORM_BOX_PADDING}, FORM_VARIANT_TEXT, TextSpacing::Narrow);
+
+        // Looks like Save and Cancel, just in the row of its field
+        if (field.type == FieldType::Button) {
+            Rectangle button = FieldBounds(i, font);
+            bool hovered = hoveredField == static_cast<int>(i);
+
+            DrawRectangleLinesEx(button, 1.0f, hovered ? FORM_FOCUS : FORM_BORDER);
+
+            font.Draw(
+                field.text,
+                {button.x + FORM_BUTTON_PADDING, button.y + FORM_BOX_PADDING},
+                hovered ? FORM_VARIANT_HOVER : FORM_VARIANT_TEXT,
+                TextSpacing::Narrow
+            );
+
+            continue;
+        }
 
         if (field.type == FieldType::Color) {
             for (std::size_t s = 0; s < field.colors.size(); s++) {
@@ -653,10 +1101,10 @@ void FormWindow::Draw(const FontRenderer &font) const {
 
         if (field.type == FieldType::Toggle) {
             if (field.checked) {
-                float width = static_cast<float>(font.Measure("X", TextSpacing::Narrow));
+                float width = static_cast<float>(font.Measure(FontRenderer::CROSS, TextSpacing::Narrow));
 
                 font.Draw(
-                    "X",
+                    FontRenderer::CROSS,
                     Renderer::SnapToPixel({box.x + (box.width - width) / 2.0f, box.y + FORM_BOX_PADDING}),
                     FORM_VARIANT_TEXT,
                     TextSpacing::Narrow
@@ -715,7 +1163,7 @@ void FormWindow::Draw(const FontRenderer &font) const {
 
         font.Draw(
             message,
-            {left, RowTop(fields.size() + 1, font) + FORM_BOX_PADDING},
+            {left, RowTop(ShownRows(font) + 1, font) + FORM_BOX_PADDING},
             error.empty() ? FORM_VARIANT_TEXT : FORM_VARIANT_ERROR,
             TextSpacing::Narrow
         );
@@ -735,6 +1183,7 @@ void FormWindow::Draw(const FontRenderer &font) const {
     button(ConfirmBounds(font), confirmLabel, hoveredButton == 1);
     button(CancelBounds(font), FORM_CANCEL_LABEL, hoveredButton == 2);
 
-    // The open list lies above everything
+    // The open list lies above everything, the menu of an option above it
     list.Draw(font);
+    optionMenu.Draw(font);
 }

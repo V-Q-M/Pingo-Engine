@@ -24,8 +24,13 @@ public:
 
     bool IsMoving() const;
 
+    // Did the character try to walk onto this cell in the last Update and
+    // stay where it is, e.g. against a wall or the edge of the map?
+    bool IsPushingAgainst(int column, int row) const;
+
 private:
-    // Starts a step if the target cell is walkable
+    // Starts a step if the target cell is walkable. Otherwise, with a
+    // direction held, remembers the cell it walks against.
     bool TryStart(Vector2 direction);
 
     const TileMap &map;
@@ -40,4 +45,9 @@ private:
     float progress = 0.0f;
 
     bool moving = false;
+
+    // The cell of the last failed step, see IsPushingAgainst
+    bool pushing = false;
+    int pushColumn = 0;
+    int pushRow = 0;
 };

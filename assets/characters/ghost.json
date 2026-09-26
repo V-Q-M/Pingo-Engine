@@ -1,7 +1,7 @@
 {
   "name": "Ghost",
 
-  "texture": "sprites/simple_ghost_atlas.png",
+  "texture": "sprites/characters/simple_ghost_atlas.png",
 
   "frameWidth": 48,
   "frameHeight": 48,
@@ -10,6 +10,9 @@
   "animationSpeedMs": 180,
 
   "isSolid": false,
+  "effects": {
+    "burning": 2
+  },
 
   "hitboxWidth": 31.0,
   "hitboxHeight": 33.0,
@@ -17,5 +20,7 @@
 
   "shadowWidth": 14.0,
   "shadowHeight": 5.0,
-  "shadowOffsetY": -0.5
+  "shadowOffsetY": -1.0,
+  "shadowOffsetX": 0.0,
+  "shadowBounce": 1.0
 }

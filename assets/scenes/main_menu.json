@@ -1,15 +1,16 @@
 {
+  "music": "music/menu.wav",
   "elements": [
     {
       "type": "label",
       "text": "Pingo Legends",
-      "x": 72,
+      "x": 85,
       "y": 30
     },
     {
       "type": "button",
       "text": "Play",
-      "x": 132,
+      "x": 136,
       "y": 64,
       "action": "scene",
       "target": "hub",
@@ -18,7 +19,7 @@
     {
       "type": "button",
       "text": "Settings",
-      "x": 104,
+      "x": 112,
       "y": 94,
       "action": "settings",
       "locked": true
@@ -26,7 +27,7 @@
     {
       "type": "button",
       "text": "Quit",
-      "x": 132,
+      "x": 136,
       "y": 124,
       "action": "quit",
       "locked": true

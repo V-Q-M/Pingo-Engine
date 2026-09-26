@@ -1,17 +1,20 @@
 {
   "name": "Pingo",
 
-  "texture": "sprites/pingo_atlas.png",
+  "texture": "sprites/characters/pingo_atlas.png",
 
   "frameWidth": 64,
   "frameHeight": 48,
-  "frameCount": 6,
+  "frameCount": 12,
 
-  "animationSpeedMs": 180,
+  "animationSpeedMs": 80,
 
   "moveSpeed": 60.0,
 
   "isSolid": true,
+  "effects": {
+    "burning": 2
+  },
 
   "hitboxWidth": 28.0,
   "hitboxHeight": 32.0,
@@ -19,5 +22,7 @@
 
   "shadowWidth": 13.0,
   "shadowHeight": 4.0,
-  "shadowOffsetY": 0.0
+  "shadowOffsetY": 0.0,
+  "shadowOffsetX": 0.0,
+  "shadowBounce": 2.0
 }

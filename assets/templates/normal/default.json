@@ -3,41 +3,41 @@
   "objects": [
     {
       "character": "characters/pingi.json",
-      "team": "heroes",
+      "group": "ally",
       "x": 54,
       "y": 74,
       "health": 85
     },
     {
       "character": "characters/pingo.json",
-      "team": "heroes",
+      "group": "ally",
       "x": 114,
       "y": 104
     },
     {
       "character": "characters/pingo.json",
-      "team": "heroes",
+      "group": "ally",
       "x": 69,
       "y": 134,
       "health": 40
     },
     {
       "character": "characters/ghost.json",
-      "team": "enemies",
+      "group": "enemy",
       "x": 266,
       "y": 74,
       "health": 60
     },
     {
       "character": "characters/witch.json",
-      "team": "enemies",
+      "group": "enemy",
       "x": 206,
       "y": 104,
       "health": 15
     },
     {
       "character": "characters/ghost.json",
-      "team": "enemies",
+      "group": "enemy",
       "x": 251,
       "y": 134
     }

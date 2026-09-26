@@ -1,5 +1,5 @@
 {
-  "texture": "sprites/tiles_atlas.png",
+  "texture": "sprites/tilesets/tiles_atlas.png",
   "tileSize": 32,
 
   "tiles": {

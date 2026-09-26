@@ -3,8 +3,13 @@
 #include <algorithm>
 #include <utility>
 
+#include "Soundcard.h"
+
 // Step by which - and + change a volume
 constexpr int VOLUME_STEP = 10;
+
+// Distance of the mode label from the bottom left corner, see DrawModeLabel
+constexpr float MODE_LABEL_MARGIN = 8.0f;
 
 // Free camera in the Development mode, in pixels per second. Shift speeds it up.
 constexpr float DEV_CAMERA_SPEED = 120.0f;
@@ -43,6 +48,7 @@ Engine::Engine(Config config, EngineOptions options)
       buildConfig(config),
       config(config),
       settings(Settings::Load(SETTINGS_FILE)),
+      fontSpacing(FontSpacing::Load()),
       renderer(options.virtualWidth, options.virtualHeight),
       pauseMenu(font, 2, 12),
       settingsMenu(font, 1, 6) {
@@ -51,6 +57,7 @@ Engine::Engine(Config config, EngineOptions options)
     settingsItems = {
         SettingsItem::MasterVolume,
         SettingsItem::MusicVolume,
+        SettingsItem::Soundcard,
         SettingsItem::Fullscreen
     };
 
@@ -58,6 +65,7 @@ Engine::Engine(Config config, EngineOptions options)
     if (config.HasDebugTools()) {
         settingsItems.push_back(SettingsItem::ShowFps);
         settingsItems.push_back(SettingsItem::Hitboxes);
+        settingsItems.push_back(SettingsItem::ObjectIds);
     }
 
     settingsItems.push_back(SettingsItem::Back);
@@ -95,6 +103,28 @@ Renderer &Engine::GetRenderer() {
 
 InputMap &Engine::GetInput() {
     return input;
+}
+
+const MouseButtons &Engine::GetMouse() const {
+    return mouse;
+}
+
+bool Engine::WasKeyPressed(int key) const {
+    return std::find(pressedKeys.begin(), pressedKeys.end(), key) != pressedKeys.end();
+}
+
+bool Engine::WasAnyKeyPressed() const {
+    return !pressedKeys.empty();
+}
+
+// Empties raylib's key queue into this frame. It has to be emptied, otherwise
+// the presses of the last frames would pile up in it.
+void Engine::TakePressedKeys() {
+    pressedKeys.clear();
+
+    for (int key = GetKeyPressed(); key != 0; key = GetKeyPressed()) {
+        pressedKeys.push_back(key);
+    }
 }
 
 const FontRenderer &Engine::GetFont() const {
@@ -173,6 +203,14 @@ DevCamera &Engine::GetDevCamera() {
     return devCamera;
 }
 
+Console &Engine::GetConsole() {
+    return console;
+}
+
+const ConsoleCommands &Engine::GetCommands() const {
+    return commands;
+}
+
 SceneBar &Engine::GetSceneBar() {
     return sceneBar;
 }
@@ -183,6 +221,18 @@ const SceneBar &Engine::GetSceneBar() const {
 
 float Engine::UiTop() const {
     return ShowsSceneTabs() ? sceneBar.Height(font) + 8.0f : 8.0f;
+}
+
+// Where the free screen ends at the bottom: over the mode label of the
+// Development build, so a window of a scene does not lie on top of it
+float Engine::UiBottom() const {
+    float height = static_cast<float>(renderer.GetHeight());
+
+    if (!buildConfig.IsDevelopment()) {
+        return height;
+    }
+
+    return height - static_cast<float>(font.LetterHeight()) - MODE_LABEL_MARGIN;
 }
 
 void Engine::RequestCursor(CursorState state) {
@@ -214,6 +264,10 @@ void Engine::SetSimulating(bool simulate) {
     simulationRequested = simulate;
     simulationPending = true;
 
+    // The windows of the scene bar belong to the editor, not to the running
+    // game: they would stay open invisibly behind the simulation
+    sceneBar.CloseWindows();
+
     // The open scene is rebuilt in the new mode
     pendingScene = sceneFactory;
 }
@@ -223,7 +277,7 @@ bool Engine::IsSimulating() const {
 }
 
 bool Engine::IsTyping() const {
-    return (scene && scene->CapturesKeyboard()) || sceneBar.CapturesKeyboard();
+    return console.IsOpen() || (scene && scene->CapturesKeyboard()) || sceneBar.CapturesKeyboard();
 }
 
 void Engine::SetGlobalUpdate(std::function<void(Engine &)> update) {
@@ -301,6 +355,7 @@ void Engine::SwitchScene() {
     }
 
     input.SetMovementEnabled(scene->Options().movement);
+    input.SetBlocked(console.IsOpen());
 
     // The last item uses the small font
     pauseMenu.SetEntries({
@@ -314,6 +369,11 @@ void Engine::SwitchScene() {
     ApplyMusic(scene->Options().music);
 
     scene->Enter();
+
+    // The commands of the old scene went with it
+    commands.Clear();
+    AddEngineCommands();
+    scene->AddCommands(commands);
 }
 
 void Engine::ApplyTheme(const Theme &next) {
@@ -323,11 +383,17 @@ void Engine::ApplyTheme(const Theme &next) {
                ? FontRenderer()
                : FontRenderer(assets.Texture().Get(theme.font), theme.letterWidth, theme.letterHeight);
 
+    // How wide every character is stands outside the game, in
+    // assets/fontSpacing.json, and is read once with the engine
+    font.SetSpacing(fontSpacing);
+
     pauseMenu.SetTheme(theme);
     settingsMenu.SetTheme(theme);
 }
 
-void Engine::ApplyMusic(const std::string &music) {
+void Engine::ApplyMusic(const std::string &music, bool keepPosition) {
+    sceneMusic = music;
+
     // Without its own music the scene is silent. In the Development mode the
     // music always stays off, see Config.
     if (!config.MusicEnabled() || music.empty()) {
@@ -336,7 +402,7 @@ void Engine::ApplyMusic(const std::string &music) {
     }
 
     // If the same track is already playing, it continues seamlessly
-    assets.Music().Play(music);
+    assets.Music().Play(Soundcard::Find(settings.soundcard).Track(music), keepPosition);
 }
 
 void Engine::Update(float dt) {
@@ -348,15 +414,26 @@ void Engine::Update(float dt) {
     // Menus, scene and scene bar report the mouse cursor anew every frame
     cursor = CursorState::Idle;
 
+    // The clicks and the keys of this frame, before anything asks for them
+    mouse.Update();
+    TakePressedKeys();
+
     // Shift + Enter plays the open scene, as long as nothing is being typed
-    bool enterPressed = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER);
+    bool enterPressed = WasKeyPressed(KEY_ENTER) || WasKeyPressed(KEY_KP_ENTER);
 
     if (buildConfig.IsDevelopment() && !simulating && enterPressed && IsShiftDown() && !IsTyping()) {
         SetSimulating(true);
     }
 
-    if (IsKeyPressed(KEY_ESCAPE)) {
+    // ESC belongs to the engine alone and is never blocked: whatever is open
+    // gets it first, see HandleEscape
+    if (WasKeyPressed(KEY_ESCAPE)) {
         HandleEscape();
+    }
+
+    // The console lies above the scene: while it is open it gets the keyboard
+    if (config.HasDebugTools() && !IsMenuOpen()) {
+        UpdateConsole();
     }
 
     if (menuWasOpen) {
@@ -368,13 +445,22 @@ void Engine::Update(float dt) {
             UpdateSettingsMenu();
         }
     } else if (!IsMenuOpen() && scene) {
-        // While typing in a form, H is a letter and toggles nothing
-        if (config.IsDevelopment() && IsKeyPressed(KEY_H) && !scene->CapturesKeyboard() &&
+        // The console takes the keyboard, the game keeps running: the hotkeys
+        // of the engine and of the game rest until it is closed. What the
+        // scenes and their tools do about it is in their own Update, see
+        // ObjectEditor::Input::keyboardBusy.
+        const bool consoleTypes = console.IsOpen();
+
+        // While typing, H is a letter and toggles nothing
+        if (config.IsDevelopment() && !consoleTypes && WasKeyPressed(KEY_H) && !scene->CapturesKeyboard() &&
             !sceneBar.CapturesKeyboard()) {
             editorHelpVisible = !editorHelpVisible;
         }
 
-        if (globalUpdate) {
+        // The scene keys belong to the editor, not to a window that is open
+        // on top of it: while something takes the keyboard, F1 and friends
+        // rest instead of throwing the open window away
+        if (globalUpdate && !IsTyping()) {
             globalUpdate(*this);
         }
 
@@ -386,8 +472,8 @@ void Engine::Update(float dt) {
             bool barBusy = ShowsSceneTabs() && sceneBar.Update(
                 *this,
                 renderer.MouseViewportPosition(),
-                IsMouseButtonPressed(MOUSE_BUTTON_LEFT),
-                IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)
+                mouse.IsLeftClicked(),
+                mouse.IsRightClicked()
             );
 
             if (!barBusy) {
@@ -406,12 +492,27 @@ void Engine::Update(float dt) {
     assets.Music().Update();
 }
 
-// ESC goes back one level: from the settings to where they were opened,
-// from the pause menu back to the scene
+// ESC goes back one level. Nothing ever blocks the key itself: whatever lies
+// on top answers it, from the top down, and only that one thing happens.
+//
+//   1. Shift and ESC end the simulation from anywhere
+//   2. the console
+//   3. the settings
+//   4. a window of the scene bar
+//   5. the scene, e.g. its code editor or a context menu
+//   6. the pause menu: it opens, and a second ESC closes it again
+//
+// That way it always finds a way out and never runs into nothing.
 void Engine::HandleEscape() {
     // Shift + ESC ends the simulation, no matter what is open
     if (simulating && IsShiftDown()) {
         SetSimulating(false);
+        return;
+    }
+
+    // The console lies above everything of the scene and closes first
+    if (console.IsOpen()) {
+        CloseConsole();
         return;
     }
 
@@ -420,8 +521,10 @@ void Engine::HandleEscape() {
         return;
     }
 
-    // The windows of the scene bar lie above the scene and close first
-    if (!pauseMenu.IsOpen() && sceneBar.CloseWindows()) {
+    // The windows of the scene bar lie above the scene and close first. Only
+    // while the bar is really there: in the simulation it is hidden, and a
+    // window that stayed open behind it would eat every ESC.
+    if (!pauseMenu.IsOpen() && ShowsSceneTabs() && sceneBar.CloseWindows()) {
         return;
     }
 
@@ -433,15 +536,28 @@ void Engine::HandleEscape() {
 
     if (pauseMenu.IsOpen()) {
         pauseMenu.Close();
-    } else {
-        OpenPauseMenu();
+
+        // One level further back: out of the simulation, into the editor
+        if (simulating) {
+            SetSimulating(false);
+        }
+
+        return;
+    }
+
+    OpenPauseMenu();
+
+    // A scene without a pause menu, e.g. the main menu, would swallow ESC
+    // during the simulation. It ends the simulation instead.
+    if (!pauseMenu.IsOpen() && simulating) {
+        SetSimulating(false);
     }
 }
 
 void Engine::UpdatePauseMenu() {
     Menu::Event event = pauseMenu.Update(
         renderer.MouseViewportPosition(),
-        IsMouseButtonPressed(MOUSE_BUTTON_LEFT),
+        mouse.IsLeftClicked(),
         renderer.GetWidth(),
         renderer.GetHeight()
     );
@@ -480,10 +596,59 @@ void Engine::CloseSettings() {
     }
 }
 
+// ":" opens the console, as long as nothing else is being typed. An entered
+// line runs one of the commands, see ConsoleCommands.
+void Engine::UpdateConsole() {
+    if (!console.IsOpen()) {
+        if (!IsTyping()) {
+            console.CheckOpen();
+        }
+
+        if (console.IsOpen()) {
+            input.SetBlocked(true);
+        }
+
+        return;
+    }
+
+    std::string line = console.Update();
+
+    if (line.empty()) {
+        return;
+    }
+
+    console.Print(std::string(1, static_cast<char>(Console::OPEN_CHARACTER)) + line);
+    console.Print(commands.Run(line));
+}
+
+void Engine::CloseConsole() {
+    console.Close();
+
+    input.SetBlocked(false);
+}
+
+void Engine::AddEngineCommands() {
+    commands.Add({"help", "", 0, [this](const std::vector<std::string> &) {
+        std::string lines;
+
+        for (const ConsoleCommand &command: commands.All()) {
+            lines += (lines.empty() ? "" : "\n") + ConsoleCommands::Usage(command);
+        }
+
+        return lines;
+    }});
+
+    commands.Add({"clear", "", 0, [this](const std::vector<std::string> &) {
+        console.ClearHistory();
+
+        return std::string();
+    }});
+}
+
 void Engine::UpdateSettingsMenu() {
     Menu::Event event = settingsMenu.Update(
         renderer.MouseViewportPosition(),
-        IsMouseButtonPressed(MOUSE_BUTTON_LEFT),
+        mouse.IsLeftClicked(),
         renderer.GetWidth(),
         renderer.GetHeight()
     );
@@ -505,6 +670,22 @@ void Engine::UpdateSettingsMenu() {
             settings.musicVolume = StepVolume(settings.musicVolume, event.action);
             break;
 
+        case SettingsItem::Soundcard: {
+            // A dropdown: only picking an option changes something
+            const std::vector<Soundcard> &cards = Soundcard::All();
+
+            if (event.action != MenuAction::Choose || event.option < 0 ||
+                event.option >= static_cast<int>(cards.size())) {
+                return;
+            }
+
+            settings.soundcard = cards[static_cast<std::size_t>(event.option)].id;
+
+            // The other version of the same music continues where it was
+            ApplyMusic(sceneMusic, true);
+            break;
+        }
+
         case SettingsItem::Fullscreen:
             settings.fullscreen = !settings.fullscreen;
             break;
@@ -515,6 +696,10 @@ void Engine::UpdateSettingsMenu() {
 
         case SettingsItem::Hitboxes:
             settings.showHitboxes = !settings.showHitboxes;
+            break;
+
+        case SettingsItem::ObjectIds:
+            settings.showObjectIds = !settings.showObjectIds;
             break;
 
         case SettingsItem::Back:
@@ -550,6 +735,17 @@ void Engine::RefreshSettingsMenu() {
                 });
                 break;
 
+            case SettingsItem::Soundcard: {
+                Menu::Entry entry{"Soundcard", Soundcard::Find(settings.soundcard).label};
+
+                for (const Soundcard &card: Soundcard::All()) {
+                    entry.options.push_back(card.label);
+                }
+
+                entries.push_back(std::move(entry));
+                break;
+            }
+
             case SettingsItem::Fullscreen:
                 entries.push_back(ToggleEntry("Fullscreen", settings.fullscreen));
                 break;
@@ -560,6 +756,10 @@ void Engine::RefreshSettingsMenu() {
 
             case SettingsItem::Hitboxes:
                 entries.push_back(ToggleEntry("Hitboxes", settings.showHitboxes));
+                break;
+
+            case SettingsItem::ObjectIds:
+                entries.push_back(ToggleEntry("Object ids", settings.showObjectIds));
                 break;
 
             case SettingsItem::Back:
@@ -624,6 +824,9 @@ void Engine::Draw() {
         sceneBar.DrawWindows(font);
     }
 
+    // Above the scene and its windows, below the menus of the engine
+    console.Draw(renderer.GetWidth(), renderer.GetHeight(), font);
+
     // Last, so the overlay also covers the scene's interface
     pauseMenu.Draw(renderer.GetWidth(), renderer.GetHeight());
     settingsMenu.Draw(renderer.GetWidth(), renderer.GetHeight());
@@ -631,7 +834,17 @@ void Engine::Draw() {
     // The mouse cursor lies above everything
     DrawCursor();
 
-    renderer.EndDraw();
+    // A window in the pixels of the screen, e.g. the code editor, lies above
+    // the finished picture. The cursor is drawn again on top of it.
+    renderer.EndDraw([this] {
+        if (!scene || !scene->DrawsScreenLayer()) {
+            return;
+        }
+
+        scene->DrawScreen();
+
+        DrawScreenCursor();
+    });
 }
 
 void Engine::DrawCursor() const {
@@ -646,6 +859,27 @@ void Engine::DrawCursor() const {
     Vector2 mouse = renderer.MouseViewportPosition();
 
     font.Draw(std::string(1, icon), {mouse.x - hotspot.x, mouse.y - hotspot.y}, variant);
+}
+
+// The same hand as DrawCursor, but in the pixels of the window: the screen
+// layer lies above the viewport the other one was drawn in
+void Engine::DrawScreenCursor() const {
+    bool grab = cursor == CursorState::Grab;
+
+    char icon = grab ? FontRenderer::ICON_GRAB : FontRenderer::ICON_POINTER;
+    Vector2 hotspot = grab ? CURSOR_GRAB_HOTSPOT : CURSOR_POINTER_HOTSPOT;
+    int variant = cursor == CursorState::Idle ? FontVariant::White : FontVariant::Yellow;
+
+    int scale = renderer.GetScale();
+    Vector2 mouse = GetMousePosition();
+
+    font.Draw(
+        std::string(1, icon),
+        {mouse.x - hotspot.x * static_cast<float>(scale), mouse.y - hotspot.y * static_cast<float>(scale)},
+        variant,
+        TextSpacing::Normal,
+        scale
+    );
 }
 
 void Engine::DrawFps() const {
@@ -671,14 +905,14 @@ void Engine::DrawModeLabel() const {
 
     font.Draw(
         label,
-        {8.0f, static_cast<float>(renderer.GetHeight() - font.LetterHeight() - 8)},
+        {8.0f, static_cast<float>(renderer.GetHeight()) - static_cast<float>(font.LetterHeight()) - MODE_LABEL_MARGIN},
         theme.hoverVariant,
         TextSpacing::Narrow
     );
 }
 
 void Engine::UpdateDevelopmentCamera(float dt) {
-    if ((scene && scene->CapturesKeyboard()) || sceneBar.CapturesKeyboard()) {
+    if (IsTyping()) {
         return;
     }
 
@@ -689,7 +923,7 @@ void Engine::UpdateDevelopmentCamera(float dt) {
     if (zoom && !sceneBar.HasOpenWindow()) {
         devCamera.Scroll(GetMouseWheelMove(), renderer.MouseWorldPosition());
 
-        if (IsKeyPressed(KEY_SPACE)) {
+        if (WasKeyPressed(KEY_SPACE)) {
             devCamera.ResetZoom();
         }
     }

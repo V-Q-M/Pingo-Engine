@@ -21,12 +21,12 @@ void SpriteInstance::SetHitbox(Hitbox hitbox) {
     this->hitbox = hitbox;
 }
 
-const Texture2D *SpriteInstance::Selector() const {
-    return selector;
+bool SpriteInstance::IsSelected() const {
+    return selected;
 }
 
-void SpriteInstance::SetSelector(const Texture2D *texture) {
-    selector = texture;
+void SpriteInstance::SetSelected(bool selected) {
+    this->selected = selected;
 }
 
 bool SpriteInstance::IsSolid() const {
@@ -47,7 +47,7 @@ void SpriteInstance::SetColliding(bool colliding) {
 
 Rectangle SpriteInstance::Bounds() const {
     return {
-        position.x - hitbox.width / 2.0f,
+        position.x + hitbox.offsetX - hitbox.width / 2.0f,
         position.y + hitbox.offsetY - hitbox.height,
         hitbox.width,
         hitbox.height

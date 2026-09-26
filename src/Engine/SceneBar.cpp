@@ -1,5 +1,6 @@
 #include "SceneBar.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <utility>
 
@@ -8,11 +9,26 @@
 // Longest name of a scene
 constexpr std::size_t SCENE_NAME_MAX_LENGTH = 16;
 
+static bool IsAltDown() {
+    return IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT);
+}
+
 static std::string Trimmed(std::string text) {
     text.erase(0, text.find_first_not_of(' '));
     text.erase(text.find_last_not_of(' ') + 1);
 
     return text;
+}
+
+// The files a new scene of the type starts with
+static std::vector<std::string> InitialChoices(const SceneType &type) {
+    std::vector<std::string> choices;
+
+    for (const SceneChoiceOption &option: type.choices) {
+        choices.push_back(option.initial);
+    }
+
+    return choices;
 }
 
 void SceneBar::Refresh(const SceneCatalog &catalog, const std::string &currentId, int viewWidth) {
@@ -89,6 +105,14 @@ bool SceneBar::Update(Engine &engine, Vector2 mouse, bool leftClicked, bool righ
         return true;
     }
 
+    // Alt and T are the shortcut of the "+", but not while the console types
+    if (!engine.GetConsole().IsOpen() && IsAltDown() && IsKeyPressed(KEY_T)) {
+        menu.Close();
+        OpenCreateForm(engine);
+
+        return true;
+    }
+
     int tab = tabs.TabAt(mouse, font);
 
     // A right click on a tab opens its menu, even if one is already open
@@ -136,7 +160,7 @@ void SceneBar::OpenMenu(Engine &engine, std::size_t index) {
 
     // Same order as Action. The lock shows what the item does.
     menu.SetTitle(entry.name);
-    menu.SetItems({"Edit", "Duplicate", entry.locked ? "Unlock" : "Lock", "Delete"});
+    menu.SetItems({"Duplicate", "Edit", entry.locked ? "Unlock" : "Lock", "Delete"});
 
     menu.SetItemIcon(static_cast<std::size_t>(Action::Edit), FontRenderer::ICON_EDIT);
     menu.SetItemIcon(static_cast<std::size_t>(Action::Duplicate), FontRenderer::ICON_DUPLICATE);
@@ -197,7 +221,10 @@ void SceneBar::ApplyAction(Engine &engine, Action action) {
     RefreshTabs(engine);
 }
 
-void SceneBar::AddTypeFields(const SceneType &type, bool entry, const std::vector<int> &values) {
+void SceneBar::AddTypeFields(const SceneType &type,
+                             bool entry,
+                             const std::vector<int> &values,
+                             const std::vector<std::string> &choices) {
     if (type.entryPoint) {
         form.AddToggle("Entry point", entry);
     }
@@ -209,16 +236,52 @@ void SceneBar::AddTypeFields(const SceneType &type, bool entry, const std::vecto
 
         form.AddNumber(option.label, value, option.minimum, option.maximum);
     }
+
+    // The files come last, so the numbers keep their place for FollowTemplate
+    choiceFiles.clear();
+
+    for (std::size_t i = 0; i < type.choices.size(); i++) {
+        const SceneChoiceOption &option = type.choices[i];
+
+        std::vector<std::string> files = option.available ? option.available() : std::vector<std::string>();
+        const std::string &chosen = i < choices.size() ? choices[i] : option.initial;
+
+        // An optional file starts with "None", so the scene can also do without
+        if (option.optional) {
+            files.insert(files.begin(), std::string());
+        }
+
+        // A chosen file outside the list still shows up, so editing does not lose it
+        if (!chosen.empty() && std::find(files.begin(), files.end(), chosen) == files.end()) {
+            files.push_back(chosen);
+        }
+
+        std::vector<std::string> labels;
+        std::size_t selected = 0;
+
+        for (std::size_t f = 0; f < files.size(); f++) {
+            labels.push_back(files[f].empty() ? "None" : std::filesystem::path(files[f]).stem().string());
+
+            if (files[f] == chosen) {
+                selected = f;
+            }
+        }
+
+        form.AddDropdown(option.label, labels, selected);
+        choiceFiles.push_back(files);
+    }
 }
 
 void SceneBar::ReadTypeFields(const SceneType &type,
                               std::size_t firstField,
                               bool &entry,
-                              std::vector<int> &values) const {
+                              std::vector<int> &values,
+                              std::vector<std::string> &choices) const {
     std::size_t field = firstField;
 
     entry = false;
     values.clear();
+    choices.clear();
 
     if (type.entryPoint) {
         entry = form.IsChecked(field);
@@ -227,6 +290,14 @@ void SceneBar::ReadTypeFields(const SceneType &type,
 
     for (std::size_t i = 0; i < type.options.size(); i++) {
         values.push_back(form.Number(field));
+        field++;
+    }
+
+    for (std::size_t i = 0; i < type.choices.size(); i++) {
+        const std::vector<std::string> &files = choiceFiles.at(i);
+        std::size_t choice = form.Choice(field);
+
+        choices.push_back(choice < files.size() ? files[choice] : type.choices[i].initial);
         field++;
     }
 }
@@ -274,9 +345,9 @@ void SceneBar::ConfirmCreateBasics(Engine &engine) {
     const SceneType *type = catalog.FindType(newType);
 
     // Without templates and options the scene is created right away
-    if (type->templates.empty() && !type->entryPoint && type->options.empty()) {
+    if (type->templates.empty() && !type->entryPoint && type->options.empty() && type->choices.empty()) {
         form.Close();
-        CreateScene(engine, 0, {}, false);
+        CreateScene(engine, 0, {}, false, {});
         return;
     }
 
@@ -298,7 +369,7 @@ void SceneBar::ConfirmCreateBasics(Engine &engine) {
         form.AddDropdown("Template", templates, 0);
     }
 
-    AddTypeFields(*type, false, catalog.TemplateOptions(newType, 0));
+    AddTypeFields(*type, false, catalog.TemplateOptions(newType, 0), InitialChoices(*type));
 
     Renderer &renderer = engine.GetRenderer();
 
@@ -349,16 +420,21 @@ void SceneBar::ConfirmCreateOptions(Engine &engine) {
 
     bool entry = false;
     std::vector<int> values;
+    std::vector<std::string> choices;
 
-    ReadTypeFields(*type, firstField, entry, values);
+    ReadTypeFields(*type, firstField, entry, values, choices);
 
-    CreateScene(engine, templateIndex, values, entry);
+    CreateScene(engine, templateIndex, values, entry, choices);
 }
 
-void SceneBar::CreateScene(Engine &engine, std::size_t templateIndex, const std::vector<int> &values, bool entry) {
+void SceneBar::CreateScene(Engine &engine,
+                           std::size_t templateIndex,
+                           const std::vector<int> &values,
+                           bool entry,
+                           const std::vector<std::string> &choices) {
     SceneCatalog &catalog = engine.GetScenes();
 
-    int index = catalog.Create(newName, newType, templateIndex, values);
+    int index = catalog.Create(newName, newType, templateIndex, values, choices);
 
     if (index < 0) {
         return;
@@ -389,24 +465,34 @@ void SceneBar::OpenEditForm(Engine &engine, std::size_t index) {
     form.SetConfirmLabel("Save");
     form.AddText("Name", entry.name, SCENE_NAME_MAX_LENGTH);
 
-    // The images are listed without extension, "None" keeps the background black
-    backgroundFiles = SceneCatalog::AvailableBackgrounds();
+    // Types without a background, like tilesets, choose their files instead
+    if (type == nullptr || type->background) {
+        // The images are listed without extension, "None" keeps the background black
+        backgroundFiles = SceneCatalog::AvailableBackgrounds();
 
-    std::vector<std::string> backgrounds = {"None"};
-    std::size_t selectedBackground = 0;
+        std::vector<std::string> backgrounds = {"None"};
+        std::size_t selectedBackground = 0;
 
-    for (std::size_t i = 0; i < backgroundFiles.size(); i++) {
-        backgrounds.push_back(std::filesystem::path(backgroundFiles[i]).stem().string());
+        for (std::size_t i = 0; i < backgroundFiles.size(); i++) {
+            backgrounds.push_back(std::filesystem::path(backgroundFiles[i]).stem().string());
 
-        if (backgroundFiles[i] == entry.background) {
-            selectedBackground = i + 1;
+            if (backgroundFiles[i] == entry.background) {
+                selectedBackground = i + 1;
+            }
         }
+
+        form.AddDropdown("Background", backgrounds, selectedBackground);
     }
 
-    form.AddDropdown("Background", backgrounds, selectedBackground);
+    editTypeFields = form.FieldCount();
 
     if (type != nullptr) {
-        AddTypeFields(*type, catalog.EntryPoint() == static_cast<int>(index), catalog.ReadOptions(index));
+        AddTypeFields(
+            *type,
+            catalog.EntryPoint() == static_cast<int>(index),
+            catalog.ReadOptions(index),
+            catalog.Choices(index)
+        );
     }
 
     Renderer &renderer = engine.GetRenderer();
@@ -434,17 +520,22 @@ void SceneBar::ConfirmEdit(Engine &engine) {
     const SceneEntry &entry = catalog.Entries()[static_cast<std::size_t>(index)];
     const SceneType *type = catalog.FindType(entry.type);
 
-    std::size_t background = form.Choice(static_cast<std::size_t>(EditField::Background));
-
     pendingName = name;
-    pendingBackground = background == 0 ? "" : backgroundFiles.at(background - 1);
+    pendingBackground = entry.background;
     pendingEntry = false;
     pendingValues.clear();
+    pendingChoices.clear();
+
+    if (type == nullptr || type->background) {
+        std::size_t background = form.Choice(static_cast<std::size_t>(EditField::Background));
+
+        pendingBackground = background == 0 ? "" : backgroundFiles.at(background - 1);
+    }
 
     std::string warning;
 
     if (type != nullptr) {
-        ReadTypeFields(*type, static_cast<std::size_t>(EditField::TypeFields), pendingEntry, pendingValues);
+        ReadTypeFields(*type, editTypeFields, pendingEntry, pendingValues, pendingChoices);
 
         warning = catalog.OptionsWarning(static_cast<std::size_t>(index), pendingValues);
     }
@@ -489,13 +580,21 @@ void SceneBar::ApplyEdit(Engine &engine) {
         catalog.SetEntryPoint(scene, pendingEntry);
     }
 
+    bool reload = false;
+
     if (type != nullptr && !type->options.empty() && pendingValues != catalog.ReadOptions(scene)) {
         catalog.ApplyOptions(scene, pendingValues);
+        reload = true;
+    }
 
-        // The open scene still holds the old data and gets reloaded
-        if (engine.CurrentSceneId() == targetId) {
-            catalog.Enter(engine, scene);
-        }
+    if (type != nullptr && !type->choices.empty() && pendingChoices != catalog.Choices(scene)) {
+        catalog.SetChoices(scene, pendingChoices);
+        reload = true;
+    }
+
+    // The open scene still holds the old data and gets reloaded
+    if (reload && engine.CurrentSceneId() == targetId) {
+        catalog.Enter(engine, scene);
     }
 
     RefreshTabs(engine);

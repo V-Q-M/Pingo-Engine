@@ -18,7 +18,14 @@ public:
     // No item chosen
     static constexpr int NOTHING = -1;
 
+    // Space between the border and the texts
+    static constexpr float PADDING = 4.0f;
+
     void SetTitle(std::string title);
+
+    // The texts get at least this much room, e.g. to line the list up with a
+    // column it opens under. 0 fits the window to its texts.
+    void SetMinWidth(float width);
 
     // If the menu is open, it stays where it is and is only pushed inwards
     // if it now sticks out over the edge
@@ -90,6 +97,8 @@ private:
     std::vector<char> icons;
 
     std::vector<bool> enabled;
+
+    float minWidth = 0.0f;
 
     int viewWidth = 0;
     int viewHeight = 0;

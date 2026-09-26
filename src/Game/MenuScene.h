@@ -105,8 +105,8 @@ private:
 
     // Same order as in the menu a right click on an element opens
     enum class ElementAction {
-        Edit,
         Duplicate,
+        Edit,
         Delete
     };
 

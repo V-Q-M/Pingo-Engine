@@ -5,6 +5,7 @@
 
 #include "raylib.h"
 
+#include "ContextMenu.h"
 #include "FontRenderer.h"
 #include "MenuAction.h"
 #include "Theme.h"
@@ -14,7 +15,8 @@
 // Items without a value are centered and clickable themselves. Items with a
 // value get two columns: on the left a label that only describes, on the
 // right the clickable value. Adjustable values show a - and a + around the
-// number there.
+// number there. Items with options are dropdowns: a click on the value opens
+// the list of options below it.
 class Menu {
 public:
     // No item affected
@@ -31,11 +33,17 @@ public:
 
         // Own font size for this item, 0 for the menu's
         int scale = 0;
+
+        // Makes the item a dropdown, value is the current option
+        std::vector<std::string> options{};
     };
 
     struct Event {
         int item = NOTHING;
         MenuAction action = MenuAction::None;
+
+        // The picked option for MenuAction::Choose, otherwise NOTHING
+        int option = NOTHING;
     };
 
     // scale enlarges the font of the items by whole numbers, lineGap is the
@@ -65,7 +73,8 @@ public:
     bool IsHovering() const;
 
     // Checks the mouse and reports what was clicked. The position is expected in
-    // viewport coordinates: the menu lies on the screen layer.
+    // viewport coordinates: the menu lies on the screen layer. While a dropdown
+    // is open, the mouse belongs to its list.
     Event Update(Vector2 mousePosition, bool clicked, int viewWidth, int viewHeight);
 
     void Draw(int viewWidth, int viewHeight) const;
@@ -81,6 +90,11 @@ private:
     };
 
     static bool IsCentered(const Entry &entry);
+
+    static bool IsDropdown(const Entry &entry);
+
+    // Opens the list of a dropdown item below its value
+    void OpenDropdown(const Layout &layout, std::size_t index, int viewWidth, int viewHeight);
 
     int EntryScale(const Entry &entry) const;
 
@@ -126,4 +140,8 @@ private:
 
     // What is under the mouse right now, for highlighting
     Event hovered;
+
+    // The open options of a dropdown, and the item they belong to
+    ContextMenu dropdown;
+    int dropdownItem = NOTHING;
 };

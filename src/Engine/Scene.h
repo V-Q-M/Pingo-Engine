@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ConsoleCommands.h"
 #include "SceneOptions.h"
 
 class Engine;
@@ -56,6 +57,13 @@ public:
     // Screen layer without camera, lies below the engine's menus
     virtual void DrawUI();
 
+    // Above everything, in the pixels of the window instead of the grid of
+    // the viewport: for windows that want more than the coarse grid, e.g. the
+    // code editor. Default: nothing, and then DrawsScreenLayer says so.
+    virtual void DrawScreen();
+
+    virtual bool DrawsScreenLayer() const;
+
     // ESC was pressed. true if the scene needed the key itself, e.g. to close
     // its own window. Then no pause menu opens. Default: false.
     virtual bool OnEscape();
@@ -63,6 +71,12 @@ public:
     // The last item in the pause menu was chosen, see
     // SceneOptions::pauseLeaveLabel. Default: quit the game.
     virtual void LeaveFromPauseMenu();
+
+    // Adds the console commands of this scene, e.g. "damage". The engine asks
+    // once the scene has started and throws them away with the scene. How to
+    // write one is explained in ConsoleCommands. Default: none.
+    // Only reachable in the Debugging and the Development build.
+    virtual void AddCommands(ConsoleCommands &commands);
 
 protected:
     Engine &engine;

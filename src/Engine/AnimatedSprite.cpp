@@ -1,5 +1,7 @@
 
 #include "AnimatedSprite.h"
+
+#include <algorithm>
 #include <cassert>
 
 AnimatedSprite::AnimatedSprite(Texture2D &texture,
@@ -8,14 +10,16 @@ AnimatedSprite::AnimatedSprite(Texture2D &texture,
                                int frameCount,
                                float shadowWidth,
                                float shadowHeight,
-                               float shadowOffsetY)
+                               float shadowOffsetY,
+                               float shadowOffsetX)
     : texture(texture),
       frameWidth(frameWidth),
       frameHeight(frameHeight),
       frameCount(frameCount),
       shadowWidth(shadowWidth),
       shadowHeight(shadowHeight),
-      shadowOffsetY(shadowOffsetY) {
+      shadowOffsetY(shadowOffsetY),
+      shadowOffsetX(shadowOffsetX) {
     columns = texture.width / frameWidth;
 }
 
@@ -43,6 +47,37 @@ void AnimatedSprite::SetFrame(int frame) {
     currentFrame = frame;
 }
 
+void AnimatedSprite::SetRow(int row) {
+    this->row = std::clamp(row, 0, RowCount() - 1);
+}
+
+int AnimatedSprite::Row() const {
+    return row;
+}
+
+int AnimatedSprite::RowCount() const {
+    return std::max(texture.height / frameHeight, 1);
+}
+
+void AnimatedSprite::SetShadowBounce(float pixels) {
+    shadowBounce = std::max(pixels, 0.0f);
+}
+
+float AnimatedSprite::ShadowBounce() const {
+    return shadowBounce;
+}
+
+float AnimatedSprite::AnimationPhase() const {
+    if (frameCount <= 0) {
+        return 0.0f;
+    }
+
+    float seconds = static_cast<float>(frameTime.count()) / 1000.0f;
+    float inFrame = seconds > 0.0f ? std::clamp(timer / seconds, 0.0f, 1.0f) : 0.0f;
+
+    return (static_cast<float>(currentFrame) + inFrame) / static_cast<float>(frameCount);
+}
+
 int AnimatedSprite::Width() const {
     return frameWidth;
 }
@@ -63,9 +98,13 @@ float AnimatedSprite::ShadowOffsetY() const {
     return shadowOffsetY;
 }
 
+float AnimatedSprite::ShadowOffsetX() const {
+    return shadowOffsetX;
+}
+
 Rectangle AnimatedSprite::GetFrame() const {
     int x = currentFrame % columns;
-    int y = currentFrame / columns;
+    int y = row + currentFrame / columns;
 
     return {
         static_cast<float>(x * frameWidth),

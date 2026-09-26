@@ -64,9 +64,9 @@ void SplashScene::Update(float dt) {
 
     pingo.GetCharacter().Sprite().Update(step);
 
-    bool skipRequested = GetKeyPressed() != 0 ||
-                         IsMouseButtonPressed(MOUSE_BUTTON_LEFT) ||
-                         IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
+    bool skipRequested = engine.WasAnyKeyPressed() ||
+                         engine.GetMouse().IsLeftClicked() ||
+                         engine.GetMouse().IsRightClicked();
 
     if (skipRequested) {
         Skip();

@@ -7,7 +7,8 @@
 // Zooming in uses whole numbers, so the pixels stay sharp. When zooming out
 // single pixel rows get dropped, which is fine for an overview.
 constexpr float ZOOM_LEVELS[] = {0.25f, 0.5f, 1.0f, 2.0f, 3.0f, 4.0f};
-constexpr const char *ZOOM_LABELS[] = {"x1/4", "x1/2", "x1", "x2", "x3", "x4"};
+// The font draws the asterisk as a cross, see FontRenderer::CROSS
+constexpr const char *ZOOM_LABELS[] = {"*1/4", "*1/2", "*1", "*2", "*3", "*4"};
 
 constexpr int ZOOM_LEVEL_COUNT = static_cast<int>(std::size(ZOOM_LEVELS));
 

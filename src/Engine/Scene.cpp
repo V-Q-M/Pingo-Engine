@@ -25,6 +25,13 @@ void Scene::Update(float) {
 void Scene::UpdateDevelopment(float) {
 }
 
+void Scene::DrawScreen() {
+}
+
+bool Scene::DrawsScreenLayer() const {
+    return false;
+}
+
 bool Scene::OnEscape() {
     return false;
 }
@@ -45,6 +52,9 @@ void Scene::Draw() {
 }
 
 void Scene::DrawUI() {
+}
+
+void Scene::AddCommands(ConsoleCommands &) {
 }
 
 void Scene::LeaveFromPauseMenu() {

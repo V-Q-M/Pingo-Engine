@@ -1,0 +1,23 @@
+{
+  "name": "Knight",
+  "texture": "sprites/characters/knight_ghost_atlas.png",
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "frameCount": 12,
+  "animationSpeedMs": 70,
+  "moveSpeed": 60.0,
+  "maxHealth": 100,
+  "isSolid": false,
+  "effects": {
+    "burning": 2
+  },
+  "hitboxWidth": 56.0,
+  "hitboxHeight": 64.0,
+  "hitboxOffsetY": 0.0,
+  "hitboxOffsetX": 0.0,
+  "shadowWidth": 18.0,
+  "shadowHeight": 5.0,
+  "shadowOffsetY": 0.0,
+  "shadowOffsetX": 0.0,
+  "shadowBounce": 2.0
+}

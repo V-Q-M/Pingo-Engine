@@ -25,10 +25,11 @@ public:
     // The hitbox in world coordinates
     Rectangle Bounds() const;
 
-    // Ring below the character, nullptr if none is shown
-    const Texture2D *Selector() const;
+    // Is the character marked? The renderer then draws a ring around its
+    // shadow, see Renderer::DrawSelector.
+    bool IsSelected() const;
 
-    void SetSelector(const Texture2D *texture);
+    void SetSelected(bool selected);
 
     // Solid characters cannot walk into each other
     bool IsSolid() const;
@@ -66,8 +67,7 @@ private:
 
     Hitbox hitbox;
 
-    const Texture2D *selector = nullptr;
-
+    bool selected = false;
     bool solid = false;
     bool colliding = false;
 

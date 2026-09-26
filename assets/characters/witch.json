@@ -1,15 +1,18 @@
 {
   "name": "Witch",
 
-  "texture": "sprites/witch_ghost_atlas.png",
+  "texture": "sprites/characters/witch_ghost_atlas.png",
 
   "frameWidth": 64,
   "frameHeight": 64,
-  "frameCount": 4,
+  "frameCount": 12,
 
-  "animationSpeedMs": 210,
+  "animationSpeedMs": 66,
 
   "isSolid": true,
+  "effects": {
+    "burning": 2
+  },
 
   "hitboxWidth": 30.0,
   "hitboxHeight": 39.0,
@@ -17,5 +20,7 @@
 
   "shadowWidth": 13.0,
   "shadowHeight": 4.0,
-  "shadowOffsetY": 1.0
+  "shadowOffsetY": 1.0,
+  "shadowOffsetX": 0.0,
+  "shadowBounce": 2.0
 }

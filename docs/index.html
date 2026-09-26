@@ -462,6 +462,17 @@
 
   .shot figcaption strong { color: var(--text); }
 
+  .placeholder {
+    aspect-ratio: 16 / 9;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    text-align: center;
+    color: var(--muted);
+    font-weight: 700;
+    background: repeating-linear-gradient(45deg, var(--surface) 0 14px, var(--surface-2) 14px 28px);
+  }
+
   .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; }
 
   .gallery.two { grid-template-columns: repeat(2, 1fr); }
@@ -841,6 +852,7 @@
     <a href="#objects">Objects</a>
     <a href="#play">Play</a>
     <a href="#tiles">Tiles</a>
+    <a href="#scripts">Scripts</a>
     <a href="#menus">Menus</a>
     <a href="#extras">Extras</a>
     <a href="#keys">Keys</a>
@@ -852,9 +864,9 @@
 
 <div class="hero" id="top">
   <div>
-    <span class="badge"><span class="icon" data-icon="music" data-scale="2" data-color="yellow"></span>Alpha 0.0.1, fresh out of the oven</span>
+    <span class="badge"><span class="icon" data-icon="music" data-scale="2" data-color="yellow"></span>Alpha 0.0.2, fresh out of the oven</span>
     <h1><span class="px" data-color="cyan">Pingo Engine</span></h1>
-    <p class="lead">A tiny 2D engine for pixel games, written in C++ with raylib. <strong>You build your scenes while the game runs</strong>, place characters with the mouse, and when you're happy, one key press brings the world to life.</p>
+    <p class="lead">A tiny 2D engine for pixel games, written in C++ with raylib. <strong>You build your scenes while the game runs</strong>, place characters with the mouse, and when you're happy, one key press brings the world to life. <strong>Tiles run C++ scripts</strong>, and you write them in a small Vim-style editor inside the game.</p>
     <div class="hero-actions">
       <a class="btn btn-yellow" href="#scenes"><span class="px" data-color="white">Take the tour</span></a>
       <a class="btn btn-plain" href="#install"><span class="px" data-color="white">Get it running</span></a>
@@ -864,7 +876,7 @@
   <div class="game-window">
     <div class="titlebar">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-      <span class="title">Pingo Legends [Development]</span>
+      <span class="title">PingoEngine [Development]</span>
     </div>
     <div class="stage">
       <div class="say"><div class="bubble down"><span class="px" data-color="white">Hi, I am Pingo! Wanna see my engine?</span></div></div>
@@ -1002,9 +1014,9 @@
     </div>
     <div class="step">
       <span class="num"><span class="px" data-color="white">3</span></span>
-      <figure class="shot"><img src="img/new-scene-options.png" alt="Options of a new tileset: columns and rows" loading="lazy"></figure>
+      <figure class="shot"><img src="img/new-scene-options.png" alt="Options of a new tileset: template, columns, rows, tile atlas and tile data" loading="lazy"></figure>
       <h3>Tweak the options</h3>
-      <p>Each type brings its own: a tileset asks for columns and rows, a menu can become the entry point.</p>
+      <p>Each type brings its own: a tileset asks for columns, rows, tile atlas and tile data, a normal scene for its music, a menu can become the entry point.</p>
     </div>
     <div class="step">
       <span class="num"><span class="px" data-color="white">4</span></span>
@@ -1022,12 +1034,12 @@
     <span class="icon" data-icon="grab" data-scale="5" data-color="yellow"></span>
     <h2><span class="px" data-color="pink">Tab tricks</span></h2>
   </div>
-  <p class="section-intro">Right click any tab for its menu: <strong>Edit, Duplicate, Lock and Delete</strong>. Everything you change lands straight in <code>assets/scenes/scenes.json</code>.</p>
+  <p class="section-intro">Right click any tab for its menu: <strong>Duplicate, Edit, Lock and Delete</strong>. Everything you change lands straight in <code>assets/scenes/scenes.json</code>.</p>
 
   <div class="gallery">
-    <figure class="shot"><img src="img/tab-menu.png" alt="Right click menu of the Forest tab" loading="lazy"><figcaption><strong>The tab menu.</strong> Edit, Duplicate, Lock and Delete, each with its own little icon.</figcaption></figure>
+    <figure class="shot"><img src="img/tab-menu.png" alt="Right click menu of the Forest tab" loading="lazy"><figcaption><strong>The tab menu.</strong> Duplicate, Edit, Lock and Delete, each with its own little icon.</figcaption></figure>
     <figure class="shot"><img src="img/tab-menu-locked.png" alt="Menu of a locked tab with Edit and Delete greyed out" loading="lazy"><figcaption><strong>Locked scenes</strong> can't be edited or deleted, those items turn grey. Unlock whenever you like.</figcaption></figure>
-    <figure class="shot"><img src="img/edit-background.png" alt="Edit scene window with the background dropdown open" loading="lazy"><figcaption><strong>Pick a background.</strong> Every image in <code>assets/backgrounds</code> shows up in the list. None keeps it black.</figcaption></figure>
+    <figure class="shot"><img src="img/edit-background.png" alt="Edit window of a menu scene with the background dropdown open" loading="lazy"><figcaption><strong>Pick a background.</strong> Menu and Normal scenes have one, tilesets draw their own tiles. Every image in <code>assets/backgrounds</code> shows up in the list. None keeps it black.</figcaption></figure>
     <figure class="shot"><img src="img/shrink-dialog.png" alt="Dialog warning that shrinking can erase some tiles" loading="lazy"><figcaption><strong>Resize tilesets.</strong> Growing fills up with empty tiles, shrinking asks first, because it can erase some.</figcaption></figure>
     <figure class="shot"><img src="img/edit-menu-entry.png" alt="Edit window of a menu with the entry point checkbox" loading="lazy"><figcaption><strong>Entry point.</strong> Tick it on any menu and all the others let go. Delete that menu and the next one takes over.</figcaption></figure>
     <figure class="shot"><img src="img/delete-scene.png" alt="Delete dialog saying this cannot be undone" loading="lazy"><figcaption><strong>Delete</strong> always asks, because it can't be undone. The last menu can never be deleted.</figcaption></figure>
@@ -1038,7 +1050,7 @@
       <h3>So many scenes!</h3>
       <p class="muted">When the tab bar fills up, long names get politely shortened with a little <span class="icon" data-icon="ellipsis" data-scale="2"></span> while short ones keep their full width. <strong>Duplicate</strong> copies a scene with all of its files, handy for trying out a variation without breaking the original.</p>
     </div>
-    <figure class="shot" style="--shade: var(--pink)"><img src="img/new-normal-none.png" alt="Five tabs, two of them shortened with an ellipsis, and an empty black scene" loading="lazy"><figcaption>A fresh Normal scene from the <strong>None</strong> template: empty, black and ready.</figcaption></figure>
+    <figure class="shot" style="--shade: var(--pink)"><img src="img/new-normal-none.png" alt="Five tabs, the last one shortened with an ellipsis, and an empty black scene" loading="lazy"><figcaption>A fresh Normal scene from the <strong>None</strong> template: empty, black and ready.</figcaption></figure>
   </div>
 </section>
 
@@ -1073,11 +1085,11 @@
   <div class="feature flip-side">
     <div>
       <h3><span class="icon" data-icon="duplicate" data-scale="3" data-color="yellow"></span>Add anything</h3>
-      <p class="muted"><strong>Right click into empty space</strong> and the Add menu lists every character type from <code>assets/characters</code>. Pick one and it appears exactly where you clicked.</p>
+      <p class="muted"><strong>Right click into empty space</strong> and Add &gt; Objects lists every character type from <code>assets/characters</code>. Pick one and it appears exactly where you clicked.</p>
       <p class="muted">Right click a type in that menu to <strong>duplicate</strong> or <strong>delete</strong> it.</p>
     </div>
     <div class="gallery two">
-      <figure class="shot" style="--tilt: 1deg; --shade: var(--pink)"><img src="img/object-add-menu.png" alt="Add menu with Ghost, Pingi, Pingo, Rolli, Witch and New" loading="lazy"><figcaption><strong>Add menu</strong></figcaption></figure>
+      <figure class="shot" style="--tilt: 1deg; --shade: var(--pink)"><img src="img/object-add-menu.png" alt="Objects list of the Add menu with Bärchen, Ghost, Knight, Pingi, Pingo, Rolli, Witch and New" loading="lazy"><figcaption><strong>Add menu</strong></figcaption></figure>
       <figure class="shot" style="--tilt: -1deg; --shade: var(--green)"><img src="img/object-type-menu.png" alt="Type menu with Duplicate and Delete next to the add menu" loading="lazy"><figcaption><strong>Type menu</strong></figcaption></figure>
     </div>
   </div>
@@ -1085,21 +1097,21 @@
   <div class="feature">
     <div>
       <h3><span class="icon" data-icon="edit" data-scale="3" data-color="yellow"></span>Invent a new object</h3>
-      <p class="muted">The last item, <strong>+New</strong>, opens a little form: name, size, health and color. You get a colorful placeholder you can place and test right away, long before its sprite is drawn. <strong>Health 0</strong> makes it indestructible, like a crate or a wall.</p>
+      <p class="muted">The last item, <strong>+New</strong>, opens a little form: name, group, sprite, size, color and health. Leave the sprite on None and you get a colorful placeholder you can place and test right away, long before its sprite is drawn. <strong>Health 0</strong> makes it indestructible, like a crate or a wall.</p>
     </div>
     <div class="gallery two">
-      <figure class="shot" style="--tilt: -1deg; --shade: var(--cyan)"><img src="img/object-new-form.png" alt="New object form with name Crate, size, health and colors" loading="lazy"><figcaption><strong>New object</strong></figcaption></figure>
+      <figure class="shot" style="--tilt: -1deg; --shade: var(--cyan)"><img src="img/object-new-form.png" alt="New object form with name Crate, group, sprite, size and colors" loading="lazy"><figcaption><strong>New object</strong></figcaption></figure>
       <figure class="shot" style="--tilt: 1deg; --shade: var(--green)"><img src="img/object-dummy.png" alt="A green placeholder crate placed in the scene" loading="lazy"><figcaption><strong>Placed and selected</strong></figcaption></figure>
     </div>
   </div>
 
   <div class="feature flip-side">
     <div>
-      <h3><span class="icon" data-icon="delete" data-scale="3" data-color="yellow"></span>Duplicate, swap, delete</h3>
-      <p class="muted"><strong>Right click a character</strong> for Duplicate, Swap Team (heroes and enemies trade places) and Delete. <kbd>Del</kbd> or <kbd>Backspace</kbd> deletes the selection too, and deleting always asks first.</p>
+      <h3><span class="icon" data-icon="delete" data-scale="3" data-color="yellow"></span>Duplicate, edit, delete</h3>
+      <p class="muted"><strong>Right click a character</strong> for Duplicate, Edit, Save object (a changed character becomes a new type) and Delete. <kbd>Del</kbd> or <kbd>Backspace</kbd> deletes the selection too, and deleting always asks first.</p>
     </div>
     <div class="gallery two">
-      <figure class="shot" style="--tilt: 1deg; --shade: var(--yellow)"><img src="img/object-menu.png" alt="Character menu with Duplicate, Swap Team and Delete" loading="lazy"><figcaption><strong>Character menu</strong></figcaption></figure>
+      <figure class="shot" style="--tilt: 1deg; --shade: var(--yellow)"><img src="img/object-menu.png" alt="Character menu with Duplicate, Edit, Save object and Delete" loading="lazy"><figcaption><strong>Character menu</strong></figcaption></figure>
       <figure class="shot" style="--tilt: -1deg; --shade: var(--red)"><img src="img/object-delete-dialog.png" alt="Dialog asking Delete Ghost, are you sure" loading="lazy"><figcaption><strong>Are you sure?</strong></figcaption></figure>
     </div>
   </div>
@@ -1140,7 +1152,7 @@
   <div class="gallery" style="margin-top: 60px">
     <figure class="shot"><img src="img/simulate-hub.png" alt="Pingo walking through the hub while playing" loading="lazy"><figcaption><strong>Walk around.</strong> Scene changes stay in play mode: return to the menu, press Play, and you're still testing.</figcaption></figure>
     <figure class="shot"><img src="img/pause-menu.png" alt="Pause menu with Continue, Settings and Return to Main Menu" loading="lazy"><figcaption><strong>Pause menu.</strong> <kbd>Esc</kbd> pauses. Return to Main Menu takes you to the entry point.</figcaption></figure>
-    <figure class="shot"><img src="img/settings-menu.png" alt="Settings with volume, music, fullscreen, FPS and hitboxes" loading="lazy"><figcaption><strong>Settings.</strong> Volume, music, fullscreen, plus FPS and hitboxes for testing. They're remembered in <code>settings.json</code>.</figcaption></figure>
+    <figure class="shot"><img src="img/settings-menu.png" alt="Settings with volume, music, sound card, fullscreen, FPS, hitboxes and object ids" loading="lazy"><figcaption><strong>Settings.</strong> Volume, music, sound card, fullscreen, plus FPS, hitboxes and object ids for testing. They're remembered in <code>settings.json</code>.</figcaption></figure>
   </div>
 </section>
 
@@ -1154,7 +1166,7 @@
     <span class="icon" data-icon="edit" data-scale="5" data-color="yellow"></span>
     <h2><span class="px" data-color="green">Paint tiles</span></h2>
   </div>
-  <p class="section-intro">Every tile wears its number. <strong>Click a tile and type a digit</strong>, or right click it and pick from the list. There is no save button: each change is written instantly.</p>
+  <p class="section-intro">Every tile wears its number. <strong>Click a tile and type a digit</strong>, or right click it, choose <strong>Tiles</strong> and pick from the list. There is no save button: each change is written instantly.</p>
 
   <div class="gallery two">
     <figure class="shot" style="--tilt: -1deg; --shade: var(--green)"><img src="img/tile-menu.png" alt="Tile menu listing 0 Empty to 7 Rock, the current tile marked with an arrow" loading="lazy"><figcaption><strong>The tile menu</strong> shows every tile with its number and name. The arrow marks the tile that's there now.</figcaption></figure>
@@ -1174,7 +1186,55 @@
 <b>71211144444115511117</b>
 <b>73333344444366663337</b></pre>
   </div>
+
+  <div class="feature" style="margin-top: 60px; margin-bottom: 0">
+    <div>
+      <h3>Tiles with a job</h3>
+      <p class="muted">A right click on a tile asks for <strong>Tiles</strong> or <strong>Scripts</strong>. Scripts lists the C++ scripts of the scene: <code>+New</code> writes one and puts it on the tile, a right click assigns, renames or deletes it. The script then runs on that tile by itself, e.g. a door that asks "Travel to Combat?" before it takes you there. Tiles with a script wear a small blue corner. The whole story is in <a href="#scripts">Scripts</a> below.</p>
+    </div>
+    <pre class="tree" aria-label="A tile script that switches the scene"><span>// hub/Portal.cpp</span>
+<b>if (tile.HasPlayerEntered()) {</b>
+<b>    map.SwitchScene("combat");</b>
+<b>}</b></pre>
+  </div>
 </section>
+
+<!-- ============================================================ Scripts -->
+
+<section id="scripts" style="padding-top: 20px">
+  <span class="kicker">Game logic</span>
+  <div class="section-title">
+    <span class="icon" data-icon="edit" data-scale="5" data-color="yellow"></span>
+    <h2><span class="px" data-color="cyan">Scripts in C++</span></h2>
+  </div>
+  <p class="section-intro">Game logic is normal C++, one folder per scene under <code>scripts/</code>. Normal scenes have a <code>Main</code> that runs every frame and sees the <code>scene</code> and its objects. Tiles of tileset scenes carry their own scripts, and see their <code>tile</code> and the <code>map</code>. A new script becomes real after the next build.</p>
+
+  <div class="feature">
+    <div>
+      <h3>Write it inside the game</h3>
+      <p class="muted">Right click a tile (or empty space in a Normal scene) and choose <strong>Scripts</strong>. <code>+New</code> writes header and source for you, a click opens the <strong>code editor</strong>: source and header as two tabs, line numbers, syntax colors and Vim-style modes with <code>:w</code>, <code>:wq</code> and <code>:q</code>. Boilerplate lines of the engine stay hidden, so line 1 is yours.</p>
+      <p class="muted">A door that asks before it takes you away: when a tile script switches the scene, the game asks <strong>"Travel to Combat?"</strong> first. After <strong>Cancel</strong> the tile stays quiet until you step off it.</p>
+    </div>
+    <figure class="shot" style="--shade: var(--cyan)">
+      <img src="img/code-editor.png" alt="The code editor with the Portal tile script of the hub" loading="lazy">
+      <figcaption>The code editor, zoomable with <kbd>Ctrl</kbd> + <kbd>+</kbd> / <kbd>-</kbd>.</figcaption>
+    </figure>
+  </div>
+
+  <div class="feature" style="margin-bottom: 0">
+    <div>
+      <h3>Tiles with a job, in action</h3>
+      <p class="muted">The hub has a portal tile that leads to the combat scene. Tiles with a script show a small blue corner while you build.</p>
+    </div>
+    <figure class="shot" style="--shade: var(--yellow)">
+      <img src="img/travel-dialog.png" alt="The dialog Travel to Combat with Confirm and Cancel in the hub" loading="lazy">
+      <figcaption>The travel dialog of a tile script.</figcaption>
+    </figure>
+  </div>
+  <p class="note" style="margin-top: 24px">Full reference: <a href="https://github.com/V-Q-M/Pingo-Engine/blob/main/scripts/Docs.md"><code>scripts/Docs.md</code></a>.</p>
+</section>
+
+<div class="divider"></div>
 
 <!-- ============================================================ Menus -->
 
@@ -1191,7 +1251,7 @@
     <figure class="shot"><img src="img/menu-add.png" alt="Add menu with Text and Button" loading="lazy"><figcaption><strong>Right click empty space</strong> to add a text or a button.</figcaption></figure>
     <figure class="shot"><img src="img/menu-new-button.png" alt="New button window with the text Credits" loading="lazy"><figcaption><strong>Type the label,</strong> then Next.</figcaption></figure>
     <figure class="shot"><img src="img/menu-button-scene.png" alt="Scene list to choose where the button leads" loading="lazy"><figcaption><strong>Choose where it leads:</strong> any scene from the tab bar.</figcaption></figure>
-    <figure class="shot"><img src="img/menu-element-menu.png" alt="Element menu with Edit, Duplicate and Delete" loading="lazy"><figcaption><strong>Right click an element</strong> to edit, duplicate or delete it.</figcaption></figure>
+    <figure class="shot"><img src="img/menu-element-menu.png" alt="Element menu with Duplicate, Edit and Delete" loading="lazy"><figcaption><strong>Right click an element</strong> to edit, duplicate or delete it.</figcaption></figure>
     <figure class="shot"><img src="img/menu-edit-button.png" alt="Edit button window with text, color swatches and scene" loading="lazy"><figcaption><strong>Edit</strong> text, color and target scene at any time.</figcaption></figure>
   </div>
 </section>
@@ -1230,7 +1290,7 @@
     <article class="card" style="--tilt: -0.8deg; --shade: var(--green)">
       <div class="body">
         <h3>A font with feelings</h3>
-        <p>Every letter on screen comes from one hand-drawn pixel font in six colors, with umlauts, punctuation, arrows and these icons:</p>
+        <p>Every letter on screen comes from one hand-drawn pixel font in six colors, with capitals, lowercase letters, digits, umlauts, punctuation, arrows and these icons. The width of every character is read from <code>assets/fontSpacing.json</code>:</p>
         <div class="icon-strip" aria-label="Icons of the pixel font">
           <span class="icon" data-icon="lock" data-scale="3"></span>
           <span class="icon" data-icon="unlock" data-scale="3"></span>
@@ -1245,6 +1305,9 @@
           <span class="icon" data-icon="edit" data-scale="3"></span>
           <span class="icon" data-icon="duplicate" data-scale="3"></span>
           <span class="icon" data-icon="ellipsis" data-scale="3"></span>
+          <span class="icon" data-icon="play" data-scale="3"></span>
+          <span class="icon" data-icon="pause" data-scale="3"></span>
+          <span class="icon" data-icon="save" data-scale="3"></span>
         </div>
       </div>
     </article>
@@ -1291,7 +1354,7 @@
           <tr><td><kbd>Esc</kbd></td><td>Close the open window, otherwise pause</td></tr>
           <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</td><td>Move the free camera, <kbd>Shift</kbd> for speed</td></tr>
           <tr><td><kbd>F1</kbd> <kbd>F2</kbd> <kbd>F3</kbd></td><td>Entry point, Hub, Combat (not in Release)</td></tr>
-          <tr><td>Right click a tab</td><td>Edit, Duplicate, Lock, Delete</td></tr>
+          <tr><td>Right click a tab</td><td>Duplicate, Edit, Lock, Delete</td></tr>
           <tr><td>Click <strong>+</strong></td><td>New scene</td></tr>
         </table>
       </div>
@@ -1309,6 +1372,21 @@
           <tr><td><kbd>0</kbd> to <kbd>9</kbd></td><td>Set the selected tile</td></tr>
           <tr><td><kbd>Shift</kbd> + click</td><td>Run a menu button</td></tr>
           <tr><td><kbd>H</kbd></td><td>Show or hide the key help</td></tr>
+          <tr><td>Right click a tile</td><td>Tiles or Scripts</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="--shade: var(--cyan)">
+      <div class="body">
+        <h3>In the code editor</h3>
+        <table>
+          <tr><td><kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd></td><td>Move the caret (normal mode)</td></tr>
+          <tr><td><kbd>i</kbd> <kbd>a</kbd> <kbd>o</kbd></td><td>Start typing (insert mode)</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Back to normal mode</td></tr>
+          <tr><td><kbd>gg</kbd> / <kbd>G</kbd></td><td>First / last line</td></tr>
+          <tr><td><kbd>:w</kbd> <kbd>:wq</kbd> <kbd>:q</kbd></td><td>Save, save and close, close</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd> / <kbd>-</kbd></td><td>Zoom the editor</td></tr>
         </table>
       </div>
     </div>
@@ -1342,7 +1420,7 @@ cd Pingo-Engine</pre></div>
           <li>Configure, build and start, here in the Development mode:
             <div class="terminal"><div class="bar"><i></i><i></i><i></i><button class="copy" type="button">Copy</button></div><pre>cmake -S . -B build -DPINGO_BUILD_MODE=Development
 cmake --build build
-cd build &amp;&amp; ./PingoLegends</pre></div>
+cd build &amp;&amp; ./PingoEngine</pre></div>
           </li>
         </ol>
         <p class="muted">Start the game from inside <code>build</code>: it loads <code>assets/</code> relative to the working directory, and every build copies the assets there. Swap <code>Development</code> for <code>Debugging</code> or <code>Release</code> to build the other modes, ideally each in its own build folder.</p>
@@ -1355,7 +1433,7 @@ cd build &amp;&amp; ./PingoLegends</pre></div>
         <ol>
           <li>Install the libraries as shown on the left (CLion brings its own CMake).</li>
           <li><strong>Open</strong> the <code>Pingo-Engine</code> folder. CLion picks up the three CMake profiles that come with the project: <strong>Release</strong>, <strong>Debugging</strong> and <strong>Development</strong>.</li>
-          <li>Choose a profile in the toolbar, pick the <strong>PingoLegends</strong> run configuration and press <strong>Run</strong>.</li>
+          <li>Choose a profile in the toolbar, pick the <strong>PingoEngine</strong> run configuration and press <strong>Run</strong>.</li>
         </ol>
         <p class="muted">Each profile builds into its own folder, like <code>cmake-build-development</code>, and sets <code>PINGO_BUILD_MODE</code> for you. Assets are copied on every run, so a tweaked JSON file always reaches the game.</p>
 
@@ -1371,7 +1449,7 @@ cd build &amp;&amp; ./PingoLegends</pre></div>
   <div class="feature" style="margin-top: 70px; margin-bottom: 0">
     <div>
       <h3>Where things live</h3>
-      <p class="muted">The engine lives in <code>src/Engine</code> and knows nothing about Pingo. The game in <code>src/Game</code> defines the three scene types and registers them. Everything you build in the editors ends up as plain files in <code>assets/</code>, easy to read and easy to commit.</p>
+      <p class="muted">The engine lives in <code>src/Engine</code> and knows nothing about Pingo. The game in <code>src/Game</code> defines the three scene types and registers them. Scripts see the engine only through <code>src/Scripting/Api</code>. Everything you build in the editors ends up as plain files in <code>assets/</code>, easy to read and easy to commit.</p>
       <div class="chat" style="margin-top: 24px">
         <span class="sprite witch bob" style="--s: 1.5"></span>
         <div class="bubble left"><span class="px" data-color="white">Have fun building!</span></div>
@@ -1385,9 +1463,12 @@ cd build &amp;&amp; ./PingoLegends</pre></div>
   templates/     <span>Default templates of each type</span>
   tilesets/      <span>tile names and walkability</span>
   fonts/ music/ sprites/
+<b>scripts/</b>
+  &lt;sceneId&gt;/    <span>C++ game logic, one folder per scene</span>
 <b>src/</b>
   Engine/        <span>scenes, editors, renderer, UI</span>
   Game/          <span>scene types, characters, splash</span>
+  Scripting/     <span>script host, the API scripts may see</span>
   main.cpp</pre>
   </div>
 </section>
@@ -1408,30 +1489,55 @@ cd build &amp;&amp; ./PingoLegends</pre></div>
 <script>
   // Draws text with the engine's font atlas, exactly like FontRenderer
   const PixelFont = (() => {
-    const CELL = 8;
+    // Mirrors FontRenderer and assets/fontSpacing.json of the engine. The atlas has cells of
+    // 8 x 12 pixels: groups of colour rows (capitals, lowercase, digits and arithmetic, other
+    // special characters), six colours each, and the icons at the bottom.
+    const CELL_W = 8;
+    const CELL_H = 12;
     const COLOR_ROWS = { white: 0, grey: 1, red: 2, yellow: 3, cyan: 4, green: 5, pink: 2 };
     const ICON_ROWS = { white: 0, grey: 1, yellow: 2 };
     const ICONS = ["lock", "unlock", "sound", "sound-off", "music", "music-off", "search",
-                   "pointer", "grab", "delete", "edit", "duplicate", "ellipsis"];
-    const DIGIT_ROW = "1234567890,.:\"?!+-*/%=_&()[]←→↑↓";
-    const UMLAUTS = { "Ä": 26, "Ü": 27, "Ö": 28, "ß": 29 };
+                   "pointer", "grab", "delete", "edit", "duplicate", "ellipsis", "play", "pause", "save"];
+    const VARIANTS = 6;
+    const GROUP = { upper: 0, lower: 1, digit: 2, special: 3 };
+    const ICON_FIRST_ROW = 4 * VARIANTS;
 
-    // Like FontRenderer: 7 pixels per character, a space half as wide
-    const ADVANCE = 7;
+    const DIGIT_ROW = "1234567890#+-*/%=&?!_";
+    const SPECIAL_ROW = ",.:;'\"()[]{}<>\\|~^";
+    const UMLAUT_COLUMN = { "ä": 26, "ü": 27, "ö": 28, "ß": 29 };
+
+    // assets/fontSpacing.json
+    const DEFAULT_SPACING = 7;
     const SPACE = 4;
+    const SPACING = {};
+    [["'|!", 5], [".,:;", 6], ["&=~/", 8]].forEach(([characters, width]) => {
+      for (const character of characters) SPACING[character] = width;
+    });
 
     const atlas = new Image();
     atlas.src = "img/game_font.png";
 
     function cell(character) {
-      const upper = character === "ß" ? character : character.toUpperCase();
-      const code = upper.charCodeAt(0);
+      const code = character.charCodeAt(0);
 
-      if (code >= 65 && code <= 90) return { column: code - 65, row: 0 };
-      if (upper in UMLAUTS) return { column: UMLAUTS[upper], row: 0 };
+      if (code >= 97 && code <= 122) return { column: code - 97, group: GROUP.lower };
+      if (code >= 65 && code <= 90) return { column: code - 65, group: GROUP.upper };
 
-      const digit = DIGIT_ROW.indexOf(upper);
-      return digit >= 0 ? { column: digit, row: 6 } : null;
+      const lower = character.toLowerCase();
+
+      if (lower in UMLAUT_COLUMN) {
+        return { column: UMLAUT_COLUMN[lower], group: character === lower ? GROUP.lower : GROUP.upper };
+      }
+
+      const digit = DIGIT_ROW.indexOf(character);
+      if (digit >= 0) return { column: digit, group: GROUP.digit };
+
+      const special = SPECIAL_ROW.indexOf(character);
+      return special >= 0 ? { column: special, group: GROUP.special } : null;
+    }
+
+    function advance(character) {
+      return SPACING[character] ?? DEFAULT_SPACING;
     }
 
     function makeCanvas(width, height, scale) {
@@ -1451,20 +1557,24 @@ cd build &amp;&amp; ./PingoLegends</pre></div>
 
     function word(text, color, scale) {
       const characters = Array.from(text);
-      const width = characters.length * ADVANCE + 1;
-      const { canvas, context, unit } = makeCanvas(width, CELL, scale);
+      const advances = characters.map(advance);
+      const width = advances.reduce((sum, value) => sum + value, 0) - (advances.at(-1) ?? 0) + CELL_W;
+      const { canvas, context, unit } = makeCanvas(width, CELL_H, scale);
       const variant = COLOR_ROWS[color] ?? 0;
+      let x = 0;
 
       characters.forEach((character, index) => {
         const found = cell(character);
 
-        if (!found) return;
+        if (found) {
+          context.drawImage(
+            atlas,
+            found.column * CELL_W, (found.group * VARIANTS + variant) * CELL_H, CELL_W, CELL_H,
+            x * unit, 0, CELL_W * unit, CELL_H * unit
+          );
+        }
 
-        context.drawImage(
-          atlas,
-          found.column * CELL, (found.row + variant) * CELL, CELL, CELL,
-          index * ADVANCE * unit, 0, CELL * unit, CELL * unit
-        );
+        x += advances[index];
       });
 
       // The atlas has no pink, so pink text is the red row, tinted
@@ -1478,10 +1588,10 @@ cd build &amp;&amp; ./PingoLegends</pre></div>
     }
 
     function icon(name, color, scale) {
-      const { canvas, context, unit } = makeCanvas(CELL, CELL, scale);
-      const row = 12 + (ICON_ROWS[color] ?? 0);
+      const { canvas, context, unit } = makeCanvas(CELL_W, CELL_H, scale);
+      const row = ICON_FIRST_ROW + (ICON_ROWS[color] ?? 0);
 
-      context.drawImage(atlas, ICONS.indexOf(name) * CELL, row * CELL, CELL, CELL, 0, 0, CELL * unit, CELL * unit);
+      context.drawImage(atlas, ICONS.indexOf(name) * CELL_W, row * CELL_H, CELL_W, CELL_H, 0, 0, CELL_W * unit, CELL_H * unit);
 
       return canvas;
     }
@@ -1508,7 +1618,7 @@ cd build &amp;&amp; ./PingoLegends</pre></div>
 
     function scaleFor(element) {
       const size = parseFloat(getComputedStyle(element.parentElement).fontSize);
-      return Math.max(1, Math.round(size / 9));
+      return Math.max(1, Math.round(size / 10));
     }
 
     function renderAll() {

@@ -43,8 +43,41 @@ public:
 
         bool rightClicked = false;
 
+        // Something else owns the keyboard, e.g. the console: arrow keys,
+        // Delete and typed digits then do nothing here. The mouse still works.
+        bool keyboardBusy = false;
+
         int viewWidth = 0;
         int viewHeight = 0;
+    };
+
+    // A part of the add menu, e.g. the object types or the scripts of a scene.
+    // With more than one section the menu first shows their labels, and only
+    // the chosen one opens its items.
+    struct AddSection {
+        // Name in the first menu, e.g. "Objects". Empty for a menu that has
+        // only this one section and shows its items right away.
+        std::string label;
+
+        // What can be added, e.g. the names of the character types
+        std::vector<std::string> items;
+
+        // Font variant per item, e.g. grey for a script that is not built in
+        // yet. Shorter than items: the rest stays in the normal color.
+        std::vector<int> itemVariants;
+
+        // Extra last item, e.g. "+New", empty for none
+        std::string extra;
+        int extraVariant = -1;
+
+        // Items of the menu a right click on one of the items opens, e.g.
+        // Rename and Delete. icons runs parallel to them, 0 for no icon.
+        std::vector<std::string> actions;
+        std::vector<char> actionIcons;
+
+        // Which actions an item allows, asked whenever its menu opens. The
+        // others are grey. Without a filter every item allows everything.
+        std::function<bool(std::size_t item, std::size_t action)> actionFilter;
     };
 
     struct Changes {
@@ -54,9 +87,12 @@ public:
         // The selection should be deleted
         bool deleteRequested = false;
 
-        // Item from the add menu, -1 for none. Equal to the number of types means:
-        // the extra item, see SetAddExtra.
+        // Item from the add menu, -1 for none. Equal to the number of items of
+        // its section means: the extra item, see AddSection::extra.
         int addType = -1;
+
+        // The section the item belongs to, see SetAddSections
+        int addSection = -1;
 
         Vector2 addPosition{0.0f, 0.0f};
 
@@ -69,9 +105,11 @@ public:
         int objectAction = -1;
         EditableObject *actionTarget = nullptr;
 
-        // Chosen item from the menu of a type, -1 for none, and the type
+        // Chosen item from the menu of an item of the add menu, -1 for none,
+        // plus which item of which section it was
         int typeAction = -1;
         std::size_t typeIndex = 0;
+        int actionSection = -1;
     };
 
     ObjectEditor();
@@ -94,7 +132,12 @@ public:
     // Moves the selection and rounds to whole pixels. false without a selection.
     bool MoveSelected(Vector2 delta);
 
-    // Names of the character types for the add menu, in the order of addType
+    // The sections of the add menu, e.g. objects and scripts. Replaces
+    // everything the menu had before.
+    void SetAddSections(std::vector<AddSection> sections);
+
+    // Names of the character types for the add menu, in the order of addType.
+    // Short for a menu with a single nameless section.
     void SetTypeNames(std::vector<std::string> names);
 
     // Additional last item in the add menu, e.g. to create a new type, in its
@@ -116,6 +159,10 @@ public:
     // May this object have a right click menu? Without a filter: every one.
     // Objects without a menu only get selected by a right click.
     void SetObjectMenuFilter(std::function<bool(const EditableObject &)> filter);
+
+    // Which items of the character menu an object allows, asked whenever the
+    // menu opens. The others are grey. Without a filter every item is allowed.
+    void SetObjectActionFilter(std::function<bool(const EditableObject &, std::size_t action)> filter);
 
     // Space between the object and the top arrow, e.g. for a health bar
     void SetTopArrowClearance(float clearance);
@@ -155,7 +202,11 @@ private:
                           const Input &input,
                           const FontRenderer &font);
 
+    // Fills the add menu with the items of the open section
     void RebuildAddMenu();
+
+    // The section that SetTypeNames and friends fill
+    AddSection &MainSection();
 
     EditableObject *selected = nullptr;
 
@@ -165,12 +216,16 @@ private:
     // way the character does not jump to the mouse with its feet.
     Vector2 dragOffset{0.0f, 0.0f};
 
+    // The labels of the sections, only used when there is more than one
+    ContextMenu sectionMenu;
+
     ContextMenu addMenu;
 
-    std::vector<std::string> typeNames;
+    // At least one section, a nameless one for a menu without sections
+    std::vector<AddSection> sections{AddSection{}};
 
-    std::string addExtraLabel;
-    int addExtraVariant = -1;
+    // The section the add menu currently shows
+    std::size_t openSection = 0;
 
     // Where the character from the add menu is created, in world coordinates
     Vector2 addPosition{0.0f, 0.0f};
@@ -188,6 +243,8 @@ private:
     std::function<std::string(const EditableObject &)> objectTitle;
 
     std::function<bool(const EditableObject &)> objectMenuFilter;
+
+    std::function<bool(const EditableObject &, std::size_t)> objectActionFilter;
 
     float topArrowClearance = 8.0f;
 };

@@ -1,0 +1,24 @@
+{
+  "name": "Bärchen",
+  "texture": "sprites/characters/bear_atlas.png",
+  "frameWidth": 48,
+  "frameHeight": 48,
+  "frameCount": 4,
+  "animationSpeedMs": 200,
+  "moveSpeed": 60.0,
+  "maxHealth": 100,
+  "isSolid": false,
+  "effects": {
+    "burning": 2,
+    "angry": 3
+  },
+  "hitboxWidth": 38.0,
+  "hitboxHeight": 44.0,
+  "hitboxOffsetY": 0.0,
+  "hitboxOffsetX": 0.0,
+  "shadowWidth": 17.0,
+  "shadowHeight": 5.0,
+  "shadowOffsetY": -3.0,
+  "shadowOffsetX": 0.0,
+  "shadowBounce": 1.0
+}

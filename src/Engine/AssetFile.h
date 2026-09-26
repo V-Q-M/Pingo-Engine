@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 // Writes text to a file: first to a temporary file, then renames it.
 // If writing fails, the old file stays intact. Missing folders are
@@ -20,3 +21,8 @@ bool AssetExists(const std::string &relativePath);
 // Deletes an asset in both places, see SaveAsset. true if it no longer
 // exists anywhere afterwards.
 bool DeleteAsset(const std::string &relativePath);
+
+// The files with this extension in a folder of the assets, as paths relative to
+// the asset folder, alphabetical, e.g. "sprites/tilesets/tiles_atlas.png" for
+// AssetFilesIn("sprites/tilesets", ".png")
+std::vector<std::string> AssetFilesIn(const std::string &folder, const std::string &extension);

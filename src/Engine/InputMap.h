@@ -24,6 +24,12 @@ public:
 
     bool IsMovementEnabled() const;
 
+    // Blocks every action, no matter which scheme, e.g. while the console
+    // takes the keyboard. The game keeps running, it just gets no input.
+    void SetBlocked(bool blocked);
+
+    bool IsBlocked() const;
+
     bool IsDown(InputAction action) const;
 
     bool WasPressed(InputAction action) const;
@@ -44,4 +50,5 @@ private:
     std::unordered_map<InputScheme, bool> enabledSchemes;
 
     bool movementEnabled = true;
+    bool blocked = false;
 };

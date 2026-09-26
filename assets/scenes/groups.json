@@ -1,0 +1,12 @@
+{
+  "groups": [
+    {
+      "id": "ally",
+      "name": "Ally"
+    },
+    {
+      "id": "enemy",
+      "name": "Enemy"
+    }
+  ]
+}

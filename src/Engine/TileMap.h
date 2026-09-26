@@ -13,9 +13,20 @@
 // Every line of the file is a row, every digit a cell. 0 is empty, the
 // digits 1 to 9 refer to the cells in the TileSet. Lines starting with #
 // and empty lines are ignored.
+//
+// A cell can also carry the name of a script, see TileScript. Those are
+// comment lines of their own, so the rows stay plain digits:
+//
+//     # @script 3 5 Door
+//
+// column and row counted from 0 at the top left. A line that cannot be read,
+// or points outside the map, is dropped.
 class TileMap {
 public:
     static constexpr int EMPTY = 0;
+
+    // Start of a comment line that assigns a script to a cell, see above
+    static constexpr const char *SCRIPT_LINE = "# @script";
 
     // If the file is missing, the map is empty
     static TileMap Load(const std::string &filename, TileSet tileSet);
@@ -44,6 +55,20 @@ public:
     // invalid digit.
     bool SetTile(int column, int row, int tile);
 
+    // Name of the script on the cell, empty for none and outside the map
+    const std::string &ScriptAt(int column, int row) const;
+
+    // Puts a script on the cell, an empty name takes it off. false outside
+    // the map or for a name with spaces, which the file could not keep.
+    bool SetScript(int column, int row, const std::string &script);
+
+    // Gives every cell with the script from the name to. How many cells
+    // changed.
+    int RenameScript(const std::string &from, const std::string &to);
+
+    // Takes the script off every cell. How many cells changed.
+    int RemoveScript(const std::string &script);
+
     // Which cell is at a world position. false next to the map.
     bool CellAt(Vector2 position, int &column, int &row) const;
 
@@ -55,7 +80,7 @@ public:
     bool SaveAsset() const;
 
     // New cells are empty. If the map gets smaller, the cells at the right and
-    // bottom edge are lost.
+    // bottom edge are lost, with their scripts.
     void Resize(int columns, int rows);
 
     // Empty cells and cells the TileSet marks as blocking are not walkable
@@ -74,6 +99,12 @@ private:
 
     std::string RowText(int row) const;
 
+    // The script lines of the file, in the order of the cells
+    std::vector<std::string> ScriptLines() const;
+
+    // Reads one script line of the file, false if it does not fit the map
+    bool ReadScriptLine(const std::string &line);
+
     std::string filename;
 
     TileSet tileSet;
@@ -82,4 +113,7 @@ private:
     int rows = 0;
 
     std::vector<int> tiles;
+
+    // Parallel to tiles, empty for a cell without a script
+    std::vector<std::string> scripts;
 };

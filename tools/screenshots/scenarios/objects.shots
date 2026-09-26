@@ -1,0 +1,89 @@
+# Section #objects of docs/index.html: the Combat scene, one linear story.
+wait 60
+
+click 540 30
+wait 50
+move 900 620
+wait 15
+
+# Selected: click Pingo, the cursor stays on him.
+click 455 330
+wait 30
+shot object-select
+
+# Dragging: hold the button on Pingo and pull him up and to the right.
+mousedown left
+move 470 320
+move 520 300
+move 580 280
+move 600 270
+wait 20
+shot object-drag
+mouseup left
+wait 20
+
+# Add menu, then the type menu of one entry.
+rclick 660 90
+wait 30
+click 780 208
+wait 30
+move 780 448
+wait 15
+shot object-add-menu
+rclick 750 570
+wait 30
+move 920 612
+wait 15
+shot object-type-menu
+
+# Close both menus with a click into empty space, then open the form.
+click 1150 600
+wait 25
+rclick 640 470
+wait 30
+click 760 590
+wait 30
+click 735 675
+wait 40
+type Crate
+wait 10
+click 668 520
+wait 10
+move 265 598
+wait 20
+shot object-new-form
+click 265 598
+wait 40
+move 1150 560
+wait 20
+shot object-dummy
+
+# Character menu of the enemy witch.
+rclick 820 330
+wait 30
+move 940 512
+wait 15
+shot object-menu
+
+# Delete always asks first: the top right ghost.
+click 300 620
+wait 25
+rclick 1065 230
+wait 30
+click 1080 530
+wait 40
+move 730 445
+wait 20
+shot object-delete-dialog
+click 730 445
+wait 30
+
+# Answer No, pick Pingo again and step back once: the crate is gone.
+click 600 270
+wait 25
+key z
+wait 30
+move 1150 600
+wait 20
+shot object-moved
+quit

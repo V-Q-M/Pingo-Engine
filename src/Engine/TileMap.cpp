@@ -1,10 +1,23 @@
 #include "TileMap.h"
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
+#include <sstream>
 #include <utility>
 
 #include "AssetFile.h"
+
+// Nobody has a script outside the map, see TileMap::ScriptAt
+static const std::string NO_SCRIPT;
+
+// Script lines are comments to everything that reads maps, only TileMap
+// looks into them
+static bool IsScriptLine(const std::string &line) {
+    std::size_t length = std::char_traits<char>::length(TileMap::SCRIPT_LINE);
+
+    return line.rfind(TileMap::SCRIPT_LINE, 0) == 0 && (line.size() == length || line[length] == ' ');
+}
 
 TileMap TileMap::Load(const std::string &filename, TileSet tileSet) {
     TileMap map;
@@ -19,12 +32,19 @@ TileMap TileMap::Load(const std::string &filename, TileSet tileSet) {
     }
 
     std::vector<std::string> lines;
+    std::vector<std::string> scriptLines;
     std::string line;
 
     while (std::getline(file, line)) {
         // Files saved on Windows additionally end every line with \r
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
+        }
+
+        // Only read once the size of the map is known, wherever they stand
+        if (IsScriptLine(line)) {
+            scriptLines.push_back(line);
+            continue;
         }
 
         if (line.empty() || line.front() == '#') {
@@ -38,6 +58,7 @@ TileMap TileMap::Load(const std::string &filename, TileSet tileSet) {
 
     map.rows = static_cast<int>(lines.size());
     map.tiles.assign(static_cast<std::size_t>(map.columns * map.rows), EMPTY);
+    map.scripts.assign(map.tiles.size(), "");
 
     for (int row = 0; row < map.rows; row++) {
         const std::string &text = lines[static_cast<std::size_t>(row)];
@@ -52,7 +73,90 @@ TileMap TileMap::Load(const std::string &filename, TileSet tileSet) {
         }
     }
 
+    for (const std::string &scriptLine: scriptLines) {
+        if (!map.ReadScriptLine(scriptLine)) {
+            TraceLog(LOG_WARNING, "TILEMAP: [%s] Zeile \"%s\" ignoriert", filename.c_str(), scriptLine.c_str());
+        }
+    }
+
     return map;
+}
+
+// "# @script 3 5 Door": the words after the prefix are column, row and name
+bool TileMap::ReadScriptLine(const std::string &line) {
+    std::istringstream words(line.substr(std::char_traits<char>::length(SCRIPT_LINE)));
+
+    int column = -1;
+    int row = -1;
+    std::string script;
+    std::string rest;
+
+    if (!(words >> column >> row >> script) || (words >> rest)) {
+        return false;
+    }
+
+    return SetScript(column, row, script);
+}
+
+std::vector<std::string> TileMap::ScriptLines() const {
+    std::vector<std::string> lines;
+
+    for (int row = 0; row < rows; row++) {
+        for (int column = 0; column < columns; column++) {
+            const std::string &script = ScriptAt(column, row);
+
+            if (!script.empty()) {
+                lines.push_back(std::string(SCRIPT_LINE) + " " + std::to_string(column) + " " +
+                                std::to_string(row) + " " + script);
+            }
+        }
+    }
+
+    return lines;
+}
+
+const std::string &TileMap::ScriptAt(int column, int row) const {
+    if (column < 0 || row < 0 || column >= columns || row >= rows) {
+        return NO_SCRIPT;
+    }
+
+    return scripts[Index(column, row)];
+}
+
+bool TileMap::SetScript(int column, int row, const std::string &script) {
+    if (column < 0 || row < 0 || column >= columns || row >= rows) {
+        return false;
+    }
+
+    bool hasSpace = std::any_of(script.begin(), script.end(), [](char letter) {
+        return std::isspace(static_cast<unsigned char>(letter));
+    });
+
+    if (hasSpace) {
+        return false;
+    }
+
+    scripts[Index(column, row)] = script;
+
+    return true;
+}
+
+int TileMap::RenameScript(const std::string &from, const std::string &to) {
+    int changed = 0;
+
+    for (int row = 0; row < rows; row++) {
+        for (int column = 0; column < columns; column++) {
+            if (!from.empty() && ScriptAt(column, row) == from && SetScript(column, row, to)) {
+                changed++;
+            }
+        }
+    }
+
+    return changed;
+}
+
+int TileMap::RemoveScript(const std::string &script) {
+    return RenameScript(script, "");
 }
 
 TileMap TileMap::Empty(const std::string &filename, int columns, int rows, TileSet tileSet) {
@@ -70,17 +174,20 @@ void TileMap::Resize(int columns, int rows) {
     rows = std::max(rows, 0);
 
     std::vector<int> resized(static_cast<std::size_t>(columns * rows), EMPTY);
+    std::vector<std::string> resizedScripts(resized.size());
 
     // Whatever fits into both sizes stays in its place
     for (int row = 0; row < std::min(rows, this->rows); row++) {
         for (int column = 0; column < std::min(columns, this->columns); column++) {
             resized[static_cast<std::size_t>(row * columns + column)] = TileAt(column, row);
+            resizedScripts[static_cast<std::size_t>(row * columns + column)] = ScriptAt(column, row);
         }
     }
 
     this->columns = columns;
     this->rows = rows;
     tiles = std::move(resized);
+    scripts = std::move(resizedScripts);
 }
 
 int TileMap::Columns() const {
@@ -164,6 +271,11 @@ bool TileMap::Save(const std::string &path) const {
             line.pop_back();
         }
 
+        // The script lines are written anew at the end, see below
+        if (IsScriptLine(line)) {
+            continue;
+        }
+
         // Comments and empty lines stay as they are
         if (line.empty() || line.front() == '#') {
             output.push_back(line);
@@ -182,6 +294,11 @@ bool TileMap::Save(const std::string &path) const {
     // New file, or the map has more rows than the file
     for (; row < rows; row++) {
         output.push_back(RowText(row));
+    }
+
+    // Below the rows, where they do not get in the way of reading the map
+    for (const std::string &scriptLine: ScriptLines()) {
+        output.push_back(scriptLine);
     }
 
     std::string text;

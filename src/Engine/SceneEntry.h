@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 
 // A scene of the game as it is listed in the SceneCatalog and shown by the
@@ -24,4 +25,9 @@ struct SceneEntry {
 
     // The game starts here, see SceneCatalog::EntryPoint
     bool entry = false;
+
+    // The files chosen for the SceneChoiceOptions of the type, by their key,
+    // e.g. the tile atlas of a map. A missing key means the initial file.
+    // Last, so entries can still be written as {id, name, type, ...}.
+    std::map<std::string, std::string> choices;
 };

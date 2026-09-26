@@ -20,8 +20,11 @@ public:
     // as a yellow and blue checkerboard
     explicit TileSet(int tileSize = 32);
 
-    // If the file is missing or broken, the placeholder is used
-    static TileSet Load(Assets &assets, const std::string &filename);
+    // Reads names and walkability from the tile data in filename. atlas is the
+    // image with the tiles; empty uses the "texture" the file names, so data and
+    // atlas can be combined freely. If the file is missing or broken, the
+    // placeholder is used.
+    static TileSet Load(Assets &assets, const std::string &filename, const std::string &atlas = "");
 
     int TileSize() const;
 

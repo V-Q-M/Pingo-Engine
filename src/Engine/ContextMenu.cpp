@@ -5,7 +5,7 @@
 
 #include "Renderer.h"
 
-constexpr float CONTEXT_PADDING = 4.0f;
+constexpr float CONTEXT_PADDING = ContextMenu::PADDING;
 constexpr float CONTEXT_LINE_GAP = 3.0f;
 
 constexpr Color CONTEXT_BACKGROUND{24, 20, 37, 235};
@@ -100,8 +100,12 @@ float ContextMenu::IconColumn(const FontRenderer &font) const {
     return 0.0f;
 }
 
+void ContextMenu::SetMinWidth(float width) {
+    minWidth = width;
+}
+
 Vector2 ContextMenu::Size(const FontRenderer &font) const {
-    float width = static_cast<float>(font.Measure(title, TextSpacing::Narrow));
+    float width = std::max(minWidth, static_cast<float>(font.Measure(title, TextSpacing::Narrow)));
 
     for (const std::string &item: items) {
         width = std::max(width, IconColumn(font) + static_cast<float>(font.Measure(item, TextSpacing::Narrow)));

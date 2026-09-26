@@ -42,7 +42,19 @@ bool InputMap::IsMovementEnabled() const {
     return movementEnabled;
 }
 
+void InputMap::SetBlocked(bool blocked) {
+    this->blocked = blocked;
+}
+
+bool InputMap::IsBlocked() const {
+    return blocked;
+}
+
 bool InputMap::IsActionEnabled(InputAction action) const {
+    if (blocked) {
+        return false;
+    }
+
     switch (action) {
         case InputAction::MoveUp:
         case InputAction::MoveDown:

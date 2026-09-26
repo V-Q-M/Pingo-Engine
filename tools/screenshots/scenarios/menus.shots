@@ -1,0 +1,57 @@
+# Section #menus of the documentation: the menu editor in the Main Menu.
+wait 40
+
+# Select the built-in Quit button: arrows and coordinates. It is nudged up a
+# little because its name label would be cut off at the bottom of the window.
+click 650 545
+wait 30
+drag 650 545 650 505 10
+wait 30
+shot menu-select
+# Put it back where it was.
+drag 650 505 650 545 10
+wait 30
+
+# Right click empty space: Add > Text / Button.
+rclick 900 500
+wait 20
+move 990 672
+wait 20
+shot menu-add
+
+# New button window with the label.
+click 990 672
+wait 30
+type Credits
+wait 10
+move 390 440
+wait 20
+shot menu-new-button
+
+# Next: the scene list. The new button is placed where the right click was.
+click 390 440
+wait 30
+move 1000 675
+wait 20
+shot menu-button-scene
+click 1000 675
+wait 30
+
+# Right click the new button: element menu.
+rclick 930 545
+wait 30
+move 1040 615
+wait 20
+shot menu-element-menu
+
+# Edit window.
+click 1040 615
+wait 30
+move 730 360
+wait 20
+shot menu-edit-button
+
+# Leave without saving.
+click 580 520
+wait 20
+quit

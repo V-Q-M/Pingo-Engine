@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -17,12 +18,26 @@
 // choice and dropdown fields the arrow keys choose. A click on a dropdown
 // opens its list. A click or space checks a box. Enter confirms.
 // Typing uses characters instead of keys, which works with every keyboard layout.
+//
+// Fields can be hidden, e.g. options that only matter for one choice. The
+// window keeps its width and stays centered.
 class FormWindow {
 public:
     enum class Result {
         None,
         Confirmed,
-        Cancelled
+        Cancelled,
+
+        // The extra item at the end of a dropdown list was chosen, see
+        // SetDropdownExtra. The list stays open.
+        ListExtra,
+
+        // An action from the menu of a dropdown option was chosen, see
+        // SetOptionActions. The list stays open.
+        OptionAction,
+
+        // A button field was clicked, see AddButton
+        FieldButton
     };
 
     void SetTitle(std::string title);
@@ -36,6 +51,7 @@ public:
     // The fields are created in the order of the calls. Returns their index.
     std::size_t AddText(std::string label, std::string value, std::size_t maxLength);
 
+    // With a negative minimum a minus can be typed in front of the digits
     std::size_t AddNumber(std::string label, int value, int minimum, int maximum);
 
     std::size_t AddColor(std::string label, std::vector<Color> colors, std::size_t selected);
@@ -48,6 +64,10 @@ public:
 
     // A box that can be checked and unchecked
     std::size_t AddToggle(std::string label, bool checked);
+
+    // A button in its own row, e.g. to open another window. A click makes Update
+    // report FieldButton.
+    std::size_t AddButton(std::string label);
 
     // Removes all fields, title and hint stay
     void Clear();
@@ -64,7 +84,8 @@ public:
     // Reads mouse and keyboard, the mouse in viewport coordinates. On Confirmed
     // the form stays open: the caller checks the input and closes it itself or
     // sets an error.
-    Result Update(Vector2 mousePosition, bool clicked, const FontRenderer &font);
+    // rightClicked opens the menu of an option in an open dropdown list.
+    Result Update(Vector2 mousePosition, bool clicked, const FontRenderer &font, bool rightClicked = false);
 
     // The same paths Update uses, also callable directly
     void Focus(std::size_t field);
@@ -83,9 +104,46 @@ public:
     // Sets a number field, limited to minimum and maximum
     void SetNumber(std::size_t field, int value);
 
+    // Hidden fields take no row, cannot be focused and keep their value. The
+    // indices of all fields stay the same.
+    void SetFieldVisible(std::size_t field, bool visible);
+
+    bool IsFieldVisible(std::size_t field) const;
+
+    // An extra last item in the list of a dropdown, e.g. "+New". Choosing it does
+    // not change the field, Update reports ListExtra instead.
+    void SetDropdownExtra(std::size_t field, std::string label);
+
+    // A right click on an option in the open list of a dropdown opens a menu
+    // with these actions, e.g. Rename and Delete. Update reports the choice as
+    // OptionAction. icons runs parallel to labels, 0 for no icon.
+    void SetOptionActions(std::size_t field, std::vector<std::string> labels, std::vector<char> icons = {});
+
+    // Decides which actions an option allows, asked whenever its menu opens.
+    // Without a filter every action is allowed.
+    void SetOptionActionFilter(std::size_t field, std::function<bool(std::size_t option, std::size_t action)> filter);
+
+    // Replaces the options of a choice or dropdown field. An open list shows
+    // them right away and stays where it is.
+    void SetOptions(std::size_t field, std::vector<std::string> options, std::size_t selected);
+
+    // Closes the menu of an option, otherwise the open list. true if something
+    // was closed, e.g. for ESC.
+    bool CloseList();
+
+    // The dropdown field of the last ListExtra or OptionAction, or the button of
+    // the last FieldButton
+    std::size_t EventField() const;
+
+    // The option and the action of the last OptionAction
+    std::size_t EventOption() const;
+
+    std::size_t EventAction() const;
+
     const std::string &Text(std::size_t field) const;
 
-    // Empty gives the minimum, values outside are clamped
+    // Empty or only a minus gives the value closest to 0, values outside are
+    // clamped
     int Number(std::size_t field) const;
 
     Color ColorValue(std::size_t field) const;
@@ -111,6 +169,10 @@ public:
 
     Rectangle SwatchBounds(std::size_t field, std::size_t index, const FontRenderer &font) const;
 
+    // Are there more fields than fit into the viewport? The form scrolls then,
+    // with the mouse wheel or by moving the focus with Tab.
+    bool IsScrollable(const FontRenderer &font) const;
+
     // Is the list of a dropdown field open?
     bool IsListOpen() const;
 
@@ -132,7 +194,8 @@ private:
         Color,
         Choice,
         Dropdown,
-        Toggle
+        Toggle,
+        Button
     };
 
     struct Field {
@@ -152,6 +215,14 @@ private:
         std::size_t choiceIndex = 0;
 
         bool checked = false;
+
+        bool visible = true;
+
+        // Only for dropdowns
+        std::string extra;
+        std::vector<std::string> actions;
+        std::vector<char> actionIcons;
+        std::function<bool(std::size_t, std::size_t)> actionFilter;
     };
 
     float RowHeight(const FontRenderer &font) const;
@@ -159,11 +230,54 @@ private:
     // Opens the list below the dropdown field
     void OpenList(std::size_t field, const FontRenderer &font);
 
+    // The options of the list field, the extra item behind them
+    void SetListItems();
+
+    // Everything Update does while a list is open
+    Result UpdateList(Vector2 mousePosition, bool clicked, bool rightClicked, const FontRenderer &font);
+
+    void OpenOptionMenu(std::size_t option, Vector2 mousePosition, const FontRenderer &font);
+
     // Row 0 is the title, then the fields, the hint and the buttons
     float RowTop(std::size_t row, const FontRenderer &font) const;
 
     // The row the buttons are in
-    std::size_t ButtonRow() const;
+    std::size_t ButtonRow(const FontRenderer &font) const;
+
+    // The row of a field, hidden and scrolled away fields before it take none
+    std::size_t FieldRow(std::size_t field) const;
+
+    std::size_t VisibleFieldCount() const;
+
+    // How many field rows fit between title and buttons, at least one
+    std::size_t FittingRows(const FontRenderer &font) const;
+
+    // As many rows as there are fields, at most as many as fit
+    std::size_t ShownRows(const FontRenderer &font) const;
+
+    // Position of a field among the visible ones
+    std::size_t VisibleIndex(std::size_t field) const;
+
+    // Is the field visible and not scrolled away? Only then can it be seen and
+    // clicked.
+    bool IsFieldShown(std::size_t field, const FontRenderer &font) const;
+
+    // Scrolls by rows, limited to the fields that exist
+    void Scroll(int rows, const FontRenderer &font);
+
+    // Scrolls until the field is on screen, e.g. after Tab
+    void ScrollTo(std::size_t field, const FontRenderer &font);
+
+    // The track of the scrollbar and the part that can be dragged
+    Rectangle ScrollbarBounds(const FontRenderer &font) const;
+
+    Rectangle ScrollThumbBounds(const FontRenderer &font) const;
+
+    // Grabbing and dragging the scrollbar
+    void UpdateScrollbar(Vector2 mousePosition, bool clicked, const FontRenderer &font);
+
+    // From the size, so the window stays centered when fields appear or disappear
+    Vector2 TopLeft(const FontRenderer &font) const;
 
     float LabelWidth(const FontRenderer &font) const;
 
@@ -172,6 +286,15 @@ private:
     float ButtonWidth(const std::string &label, const FontRenderer &font) const;
 
     Vector2 Size(const FontRenderer &font) const;
+
+    // First shown field row when not all of them fit
+    std::size_t scroll = 0;
+
+    // Is the scrollbar currently held with the mouse?
+    bool draggingScroll = false;
+
+    // The focused field of the last Update, to notice a new focus
+    std::size_t lastFocused = 0;
 
     std::string title;
     std::string confirmLabel = "OK";
@@ -184,7 +307,8 @@ private:
 
     bool open = false;
 
-    Vector2 topLeft{0.0f, 0.0f};
+    // Middle of the view, set when opening
+    Vector2 center{0.0f, 0.0f};
 
     int viewWidth = 0;
     int viewHeight = 0;
@@ -194,7 +318,19 @@ private:
 
     bool hoveringField = false;
 
+    // The field under the mouse during the last Update, -1 for none
+    int hoveredField = -1;
+
     // The open list and the field it belongs to
     ContextMenu list;
     std::size_t listField = 0;
+
+    // The actions of one option in the open list, and that option
+    ContextMenu optionMenu;
+    std::size_t optionMenuOption = 0;
+
+    // What the last ListExtra or OptionAction was about
+    std::size_t eventField = 0;
+    std::size_t eventOption = 0;
+    std::size_t eventAction = 0;
 };

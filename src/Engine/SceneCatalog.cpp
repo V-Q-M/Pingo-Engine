@@ -12,34 +12,17 @@
 #include "raylib.h"
 
 #include "AssetFile.h"
+#include "Names.h"
+
+// Where the music of a scene comes from, see AddMusicChoice
+constexpr const char *MUSIC_FOLDER = "music";
+constexpr const char *MUSIC_EXTENSION = ".wav";
 
 // ordered_json keeps the order of the keys, so the saved file stays as
 // readable as it was written
 using json = nlohmann::ordered_json;
 
 constexpr const char *ID_PLACEHOLDER = "{id}";
-
-// Id from a name: lowercase letters, digits and _, e.g. "Dark Forest"
-// becomes dark_forest
-static std::string IdFromName(const std::string &name) {
-    std::string id;
-
-    for (char character: name) {
-        if (character >= 'A' && character <= 'Z') {
-            id += static_cast<char>(character - 'A' + 'a');
-        } else if ((character >= 'a' && character <= 'z') || (character >= '0' && character <= '9')) {
-            id += character;
-        } else if (!id.empty() && id.back() != '_') {
-            id += '_';
-        }
-    }
-
-    while (!id.empty() && id.back() == '_') {
-        id.pop_back();
-    }
-
-    return id.empty() ? "scene" : id;
-}
 
 std::vector<std::string> SceneCatalog::AvailableBackgrounds() {
     std::vector<std::string> backgrounds;
@@ -57,10 +40,25 @@ std::vector<std::string> SceneCatalog::AvailableBackgrounds() {
     return backgrounds;
 }
 
+// Music belongs to every scene, so no type has to bring it along itself. It
+// comes last, behind the files of the type.
+static void AddMusicChoice(SceneType &type) {
+    SceneChoiceOption music;
+
+    music.key = SceneCatalog::MUSIC_CHOICE;
+    music.label = "Music";
+    music.available = [] { return AssetFilesIn(MUSIC_FOLDER, MUSIC_EXTENSION); };
+    music.optional = true;
+
+    type.choices.push_back(std::move(music));
+}
+
 void SceneCatalog::RegisterType(const std::string &name, SceneType type) {
     if (types.find(name) == types.end()) {
         typeNames.push_back(name);
     }
+
+    AddMusicChoice(type);
 
     types[name] = std::move(type);
 }
@@ -102,6 +100,14 @@ void SceneCatalog::Load(const std::string &filename, std::vector<SceneEntry> fal
             entry.background = item.value("background", std::string());
             entry.locked = item.value("locked", false);
             entry.entry = item.value("entry", false);
+
+            if (item.contains("choices") && item["choices"].is_object()) {
+                for (const auto &choice: item["choices"].items()) {
+                    if (choice.value().is_string()) {
+                        entry.choices[choice.key()] = choice.value().get<std::string>();
+                    }
+                }
+            }
 
             if (IndexOf(entry.id) >= 0) {
                 TraceLog(LOG_WARNING, "SCENE: [%s] Kennung \"%s\" doppelt, uebersprungen",
@@ -151,6 +157,16 @@ bool SceneCatalog::Save() const {
 
         if (entry.entry) {
             item["entry"] = true;
+        }
+
+        if (!entry.choices.empty()) {
+            json choices = json::object();
+
+            for (const auto &[key, file]: entry.choices) {
+                choices[key] = file;
+            }
+
+            item["choices"] = choices;
         }
 
         list.push_back(item);
@@ -312,7 +328,8 @@ std::vector<int> SceneCatalog::CompleteOptions(const SceneType &type, std::vecto
 int SceneCatalog::Create(const std::string &name,
                          const std::string &type,
                          std::size_t templateIndex,
-                         const std::vector<int> &values) {
+                         const std::vector<int> &values,
+                         const std::vector<std::string> &choices) {
     const SceneType *sceneType = FindType(type);
 
     if (sceneType == nullptr || name.empty()) {
@@ -320,7 +337,7 @@ int SceneCatalog::Create(const std::string &name,
     }
 
     SceneEntry entry;
-    entry.id = UniqueId(IdFromName(name), type);
+    entry.id = UniqueId(IdFromName(name, "scene"), type);
     entry.name = name;
     entry.type = type;
 
@@ -335,6 +352,10 @@ int SceneCatalog::Create(const std::string &name,
         }
 
         entry.background = sceneTemplate.background;
+    }
+
+    for (std::size_t i = 0; i < sceneType->choices.size() && i < choices.size(); i++) {
+        entry.choices[sceneType->choices[i].key] = choices[i];
     }
 
     if (sceneType->applyOptions && !sceneType->applyOptions(files, values)) {
@@ -426,6 +447,7 @@ int SceneCatalog::Duplicate(std::size_t index) {
     copy.name = UniqueCopyName(original);
     copy.type = original.type;
     copy.background = original.background;
+    copy.choices = original.choices;
 
     // If the original lacks a file, the copy starts without it too
     if (!CopyFiles(FilesFor(original.id, original.type), FilesFor(copy.id, copy.type))) {
@@ -505,6 +527,78 @@ void SceneCatalog::SetBackground(std::size_t index, const std::string &backgroun
     }
 
     entries[index].background = background;
+
+    Save();
+}
+
+std::vector<std::string> SceneCatalog::Choices(std::size_t index) const {
+    std::vector<std::string> files;
+
+    const SceneType *type = index < entries.size() ? FindType(entries[index].type) : nullptr;
+
+    if (type == nullptr) {
+        return files;
+    }
+
+    for (const SceneChoiceOption &option: type->choices) {
+        auto chosen = entries[index].choices.find(option.key);
+
+        files.push_back(chosen != entries[index].choices.end() ? chosen->second : option.initial);
+    }
+
+    return files;
+}
+
+std::string SceneCatalog::Choice(const std::string &id, const std::string &key) const {
+    int index = IndexOf(id);
+
+    if (index < 0) {
+        return "";
+    }
+
+    const SceneType *type = FindType(entries[static_cast<std::size_t>(index)].type);
+
+    if (type == nullptr) {
+        return "";
+    }
+
+    for (std::size_t i = 0; i < type->choices.size(); i++) {
+        if (type->choices[i].key == key) {
+            return Choices(static_cast<std::size_t>(index))[i];
+        }
+    }
+
+    return "";
+}
+
+void SceneCatalog::SetChoice(std::size_t index, const std::string &key, const std::string &file) {
+    const SceneType *type = index < entries.size() ? FindType(entries[index].type) : nullptr;
+
+    if (type == nullptr) {
+        return;
+    }
+
+    for (const SceneChoiceOption &option: type->choices) {
+        if (option.key == key) {
+            entries[index].choices[key] = file;
+
+            Save();
+
+            return;
+        }
+    }
+}
+
+void SceneCatalog::SetChoices(std::size_t index, const std::vector<std::string> &files) {
+    const SceneType *type = index < entries.size() ? FindType(entries[index].type) : nullptr;
+
+    if (type == nullptr || files == Choices(index)) {
+        return;
+    }
+
+    for (std::size_t i = 0; i < type->choices.size() && i < files.size(); i++) {
+        entries[index].choices[type->choices[i].key] = files[i];
+    }
 
     Save();
 }

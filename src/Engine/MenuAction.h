@@ -11,5 +11,8 @@ enum class MenuAction {
     Decrease,
 
     // The + next to an adjustable value
-    Increase
+    Increase,
+
+    // An option was picked from a dropdown, see Menu::Event::option
+    Choose
 };

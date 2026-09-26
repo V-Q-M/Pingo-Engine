@@ -8,7 +8,7 @@ you're happy, one key press brings the world to life.
 
 ![The combat scene in the Development build, with the scene tabs at the top](docs/img/combat-dev.png)
 
-> Alpha 0.0.1: things are still moving, and so are the characters.
+> Alpha 0.0.2: things are still moving, and so are the characters.
 
 ## Features
 
@@ -22,6 +22,9 @@ you're happy, one key press brings the world to life.
   Invent new object types with a small form and undo everything with `Z` / `Y`.
 - **Press play.** `Shift` + `Enter` plays the open scene, `Shift` + `Esc` brings you back to building.
 - **Paint tiles** by typing digits or picking them from a menu. Every change is saved instantly.
+- **Tile scripts:** right click a tile, choose **Scripts** and give it a C++ script that runs on its
+  own, e.g. a door that asks "Travel to Combat?" when the player steps on it. Tiles with a
+  script show a small blue corner. See `scripts/Docs.md`.
 - **Menus without code:** add buttons, choose where they lead, change text and color.
 - A hand-drawn pixel font with icons, a custom cursor, a splash screen and three build modes.
 
@@ -41,7 +44,7 @@ git clone https://github.com/V-Q-M/Pingo-Engine.git
 cd Pingo-Engine
 cmake -S . -B build -DPINGO_BUILD_MODE=Development
 cmake --build build
-cd build && ./PingoLegends
+cd build && ./PingoEngine
 ```
 
 Start the game from inside the build folder: it loads `assets/` relative to the working
@@ -52,7 +55,7 @@ directory, and every build copies the assets there.
 1. Install the libraries as shown above.
 2. Open the project folder. CLion picks up the three CMake profiles
    **Release**, **Debugging** and **Development**.
-3. Choose a profile, select the **PingoLegends** run configuration and press **Run**.
+3. Choose a profile, select the **PingoEngine** run configuration and press **Run**.
 
 On Linux or Windows, install raylib and nlohmann/json so CMake's `find_package` can find them.
 The engine is developed and tested on macOS.
@@ -80,6 +83,7 @@ assets/
   tilesets/      tile names and walkability
   fonts/ music/ sprites/
 docs/            the documentation website
+scripts/         game logic in C++, one folder per scene, see scripts/Docs.md
 src/
   Engine/        scenes, editors, renderer, UI
   Game/          scene types, characters, splash screen
@@ -95,7 +99,7 @@ src/
 | `Esc` | Close the open window, otherwise pause |
 | `WASD` / arrows | Move the free camera, `Shift` for speed |
 | Click / drag | Select and move characters and menu elements |
-| Right click | Add menu in empty space, actions on objects and tabs |
+| Right click | Add menu in empty space, tiles and scripts on a tile, actions on objects and tabs |
 | `Del` / `Backspace` | Delete the selection |
 | `Z` / `Y` | Undo / redo |
 | `0` to `9` | Set the selected tile |

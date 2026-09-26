@@ -22,6 +22,25 @@ struct SceneNumberOption {
     int initial = 1;
 };
 
+// A file that can be chosen when creating and editing a scene, e.g. the tile
+// atlas of a map. The choice is stored in the SceneEntry.
+struct SceneChoiceOption {
+    // Name in the SceneEntry, e.g. "tileAtlas"
+    std::string key;
+
+    std::string label;
+
+    // The files to choose from, relative to the asset folder
+    std::function<std::vector<std::string>()> available;
+
+    // For new scenes and for scenes without a choice yet
+    std::string initial;
+
+    // The dropdown starts with "None", so the scene can also have no file at
+    // all, e.g. no music
+    bool optional = false;
+};
+
 // What a new scene starts with, e.g. "Default" with the files of the hub
 struct SceneTemplate {
     // Name in the choice
@@ -62,6 +81,12 @@ struct SceneType {
     // Adjustable numbers, e.g. columns and rows of a map
     std::vector<SceneNumberOption> options;
 
+    // Does a scene of this type have a background image? See SceneEntry::background
+    bool background = true;
+
+    // Files to choose, e.g. tile atlas and tile data of a map
+    std::vector<SceneChoiceOption> choices;
+
     // The values of the options, read from the files of a scene or a template.
     // files is in the order of files above.
     std::function<std::vector<int>(const std::vector<std::string> &files)> readOptions;
@@ -85,6 +110,10 @@ class SceneCatalog {
 public:
     // Folder under assets with the images a scene can have as its background
     static constexpr const char *BACKGROUND_FOLDER = "backgrounds";
+
+    // Every scene chooses its music, see RegisterType. The scene reads it with
+    // Choice(id, MUSIC_CHOICE) and puts it into its SceneOptions.
+    static constexpr const char *MUSIC_CHOICE = "music";
 
     // All backgrounds as file names, alphabetical, e.g. "map.png"
     static std::vector<std::string> AvailableBackgrounds();
@@ -120,10 +149,12 @@ public:
     // Appends a new scene, the id is derived from the name. It starts with the
     // files of the template, then the values of the options apply. Index of the
     // scene, -1 on an error.
+    // choices are the files in the order of SceneType::choices.
     int Create(const std::string &name,
                const std::string &type,
                std::size_t templateIndex,
-               const std::vector<int> &values);
+               const std::vector<int> &values,
+               const std::vector<std::string> &choices = {});
 
     // The values of the options a template starts with, e.g. the size of the hub
     std::vector<int> TemplateOptions(const std::string &type, std::size_t templateIndex) const;
@@ -154,6 +185,21 @@ public:
 
     // Empty for no background
     void SetBackground(std::size_t index, const std::string &background);
+
+    // The chosen files of a scene in the order of SceneType::choices, the initial
+    // ones where nothing was chosen
+    std::vector<std::string> Choices(std::size_t index) const;
+
+    // The chosen file for one key, e.g. for a scene loading its tile atlas. Empty
+    // if the scene or the key does not exist.
+    std::string Choice(const std::string &id, const std::string &key) const;
+
+    // files in the order of SceneType::choices
+    void SetChoices(std::size_t index, const std::vector<std::string> &files);
+
+    // One chosen file by its key, e.g. the music of a scene. Nothing happens if
+    // the scene or the key does not exist.
+    void SetChoice(std::size_t index, const std::string &key, const std::string &file);
 
     // Where the game starts: the marked scene, without a mark the first one that
     // can be one. -1 if there is none.

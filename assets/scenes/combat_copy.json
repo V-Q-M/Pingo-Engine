@@ -1,0 +1,46 @@
+{
+  "music": "music/battle.wav",
+  "objects": [
+    {
+      "character": "characters/pingi.json",
+      "group": "ally",
+      "x": 54,
+      "y": 74,
+      "health": 85
+    },
+    {
+      "character": "characters/pingo.json",
+      "group": "ally",
+      "x": 114,
+      "y": 104
+    },
+    {
+      "character": "characters/ghost.json",
+      "group": "enemy",
+      "x": 266,
+      "y": 74,
+      "health": 60
+    },
+    {
+      "character": "characters/witch.json",
+      "group": "enemy",
+      "x": 251,
+      "y": 134,
+      "health": 15
+    },
+    {
+      "character": "characters/b_rchen.json",
+      "group": "ally",
+      "x": 69,
+      "y": 134,
+      "health": 60,
+      "maxEnergy": 100
+    },
+    {
+      "character": "characters/knight.json",
+      "group": "enemy",
+      "x": 206,
+      "y": 104
+    }
+  ]
+}

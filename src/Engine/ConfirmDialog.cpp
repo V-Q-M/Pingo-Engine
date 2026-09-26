@@ -12,9 +12,6 @@ constexpr float DIALOG_BUTTON_PADDING = 6.0f;
 constexpr float DIALOG_BUTTON_GAP = 16.0f;
 constexpr float DIALOG_MIN_WIDTH = 100.0f;
 
-constexpr const char *DIALOG_YES = "Yes";
-constexpr const char *DIALOG_NO = "No";
-
 constexpr Color DIALOG_SHADE{0, 0, 0, 110};
 constexpr Color DIALOG_BACKGROUND{24, 20, 37, 245};
 constexpr Color DIALOG_BORDER{255, 255, 255, 140};
@@ -40,7 +37,10 @@ void ConfirmDialog::Open(std::string title,
         start = end + 1;
     }
 
-    lines.push_back(message.substr(start));
+    // A question that fits into the title needs no empty row below it
+    if (!message.empty()) {
+        lines.push_back(message.substr(start));
+    }
     this->viewWidth = viewWidth;
     this->viewHeight = viewHeight;
 
@@ -50,6 +50,11 @@ void ConfirmDialog::Open(std::string title,
 
     open = true;
     hovered = 0;
+}
+
+void ConfirmDialog::SetButtons(std::string yes, std::string no) {
+    yesLabel = std::move(yes);
+    noLabel = std::move(no);
 }
 
 void ConfirmDialog::Close() {
@@ -77,7 +82,7 @@ Vector2 ConfirmDialog::Size(const FontRenderer &font) const {
     float width = std::max({
         DIALOG_MIN_WIDTH,
         static_cast<float>(font.Measure(title, TextSpacing::Narrow)),
-        ButtonWidth(DIALOG_YES, font) + DIALOG_BUTTON_GAP + ButtonWidth(DIALOG_NO, font)
+        ButtonWidth(yesLabel, font) + DIALOG_BUTTON_GAP + ButtonWidth(noLabel, font)
     });
 
     for (const std::string &line: lines) {
@@ -101,13 +106,13 @@ Rectangle ConfirmDialog::Bounds(const FontRenderer &font) const {
 
 // The buttons sit together, centered in the last row
 Rectangle ConfirmDialog::YesBounds(const FontRenderer &font) const {
-    float buttons = ButtonWidth(DIALOG_YES, font) + DIALOG_BUTTON_GAP + ButtonWidth(DIALOG_NO, font);
+    float buttons = ButtonWidth(yesLabel, font) + DIALOG_BUTTON_GAP + ButtonWidth(noLabel, font);
     Vector2 size = Size(font);
 
     return {
         Renderer::SnapToPixel({topLeft.x + (size.x - buttons) / 2.0f, 0.0f}).x,
         topLeft.y + DIALOG_PADDING + (1.0f + static_cast<float>(lines.size())) * (RowHeight(font) + DIALOG_ROW_GAP),
-        ButtonWidth(DIALOG_YES, font),
+        ButtonWidth(yesLabel, font),
         RowHeight(font)
     };
 }
@@ -115,7 +120,7 @@ Rectangle ConfirmDialog::YesBounds(const FontRenderer &font) const {
 Rectangle ConfirmDialog::NoBounds(const FontRenderer &font) const {
     Rectangle yes = YesBounds(font);
 
-    return {yes.x + yes.width + DIALOG_BUTTON_GAP, yes.y, ButtonWidth(DIALOG_NO, font), RowHeight(font)};
+    return {yes.x + yes.width + DIALOG_BUTTON_GAP, yes.y, ButtonWidth(noLabel, font), RowHeight(font)};
 }
 
 ConfirmDialog::Result ConfirmDialog::Update(Vector2 mousePosition, bool clicked, const FontRenderer &font) {
@@ -172,7 +177,7 @@ void ConfirmDialog::Draw(const FontRenderer &font) const {
         centered(lines[i], top, DIALOG_VARIANT_TEXT);
     }
 
-    auto button = [&](Rectangle rect, const char *label, bool isHovered) {
+    auto button = [&](Rectangle rect, const std::string &label, bool isHovered) {
         DrawRectangleLinesEx(rect, 1.0f, isHovered ? DIALOG_HOVER : DIALOG_BORDER);
 
         font.Draw(
@@ -183,6 +188,6 @@ void ConfirmDialog::Draw(const FontRenderer &font) const {
         );
     };
 
-    button(YesBounds(font), DIALOG_YES, hovered == 1);
-    button(NoBounds(font), DIALOG_NO, hovered == 2);
+    button(YesBounds(font), yesLabel, hovered == 1);
+    button(NoBounds(font), noLabel, hovered == 2);
 }

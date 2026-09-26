@@ -6,20 +6,38 @@
       "type": "menu",
       "background": "map.png",
       "locked": true,
-      "entry": true
+      "entry": true,
+      "choices": {
+        "music": "music/menu.wav"
+      }
     },
     {
       "id": "hub",
       "name": "Hub",
       "type": "tileset",
-      "locked": true
+      "locked": true,
+      "choices": {
+        "music": "music/hub.wav"
+      }
     },
     {
       "id": "combat",
       "name": "Combat",
       "type": "normal",
       "background": "map.png",
-      "locked": true
+      "locked": true,
+      "choices": {
+        "music": "music/battle.wav"
+      }
+    },
+    {
+      "id": "combat_copy",
+      "name": "Knight",
+      "type": "normal",
+      "background": "map.png",
+      "choices": {
+        "music": "music/battle.wav"
+      }
     }
   ]
 }

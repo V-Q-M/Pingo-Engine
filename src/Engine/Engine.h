@@ -12,8 +12,11 @@
 #include "FontRenderer.h"
 #include "InputMap.h"
 #include "Menu.h"
+#include "MouseButtons.h"
 #include "Renderer.h"
 #include "Scene.h"
+#include "Console.h"
+#include "ConsoleCommands.h"
 #include "SceneBar.h"
 #include "SceneCatalog.h"
 #include "Settings.h"
@@ -21,7 +24,7 @@
 #include "Window.h"
 
 struct EngineOptions {
-    std::string title = "PingoLegends";
+    std::string title = "PingoEngine";
 
     int windowWidth = 1280;
     int windowHeight = 720;
@@ -91,6 +94,13 @@ public:
 
     bool ShowsSceneTabs() const;
 
+    // The command line of the Debugging and Development build
+    Console &GetConsole();
+
+    // What the console understands right now: the commands of the engine and
+    // of the open scene, see ConsoleCommands
+    const ConsoleCommands &GetCommands() const;
+
     // Tabs and windows of the scene bar. In the Development mode the engine
     // updates them every frame before the scene.
     SceneBar &GetSceneBar();
@@ -125,6 +135,9 @@ public:
     // shown. E.g. for displays at the top right.
     float UiTop() const;
 
+    // Lower edge of the free screen, over the mode label
+    float UiBottom() const;
+
     // Opens the pause menu, if the scene has one. ESC calls this too.
     void OpenPauseMenu();
 
@@ -153,6 +166,25 @@ public:
 
     InputMap &GetInput();
 
+    // Clicks of the current frame. Use this instead of raylib's
+    // IsMouseButtonPressed: it also catches trackpad taps and the right click
+    // of macOS.
+    const MouseButtons &GetMouse() const;
+
+    // Was this key pressed in this frame? Everything that reacts to a key
+    // press asks here instead of calling raylib directly.
+    //
+    // raylib's IsKeyPressed compares the state of two frames, so a quick tap
+    // that goes down and up again between them is lost. That is exactly the
+    // problem the mouse has, see MouseButtons: a hotkey like ESC then only
+    // works when the key is held a little, e.g. together with Shift. The key
+    // queue of raylib keeps every press instead, and that is what is read
+    // here.
+    bool WasKeyPressed(int key) const;
+
+    // Was any key pressed at all, e.g. to skip the splash screen?
+    bool WasAnyKeyPressed() const;
+
     const FontRenderer &GetFont() const;
 
     const Theme &GetTheme() const;
@@ -172,9 +204,11 @@ private:
     enum class SettingsItem {
         MasterVolume,
         MusicVolume,
+        Soundcard,
         Fullscreen,
         ShowFps,
         Hitboxes,
+        ObjectIds,
         Back
     };
 
@@ -188,18 +222,34 @@ private:
 
     void Draw();
 
+    // Reads raylib's key queue once per frame, see WasKeyPressed
+    void TakePressedKeys();
+
     void HandleEscape();
+
+    void DrawScreenCursor() const;
 
     void UpdatePauseMenu();
 
     void UpdateSettingsMenu();
 
+    // ":" opens the console, an entered line runs one of the commands
+    void UpdateConsole();
+
+    // Commands every scene has, e.g. help. Called before the scene adds its own.
+    void AddEngineCommands();
+
+    // Closes the console and gives the keys back to the scene
+    void CloseConsole();
+
     void CloseSettings();
 
     void ApplyTheme(const Theme &next);
 
-    // Stops the music of the previous scene and starts the new one's
-    void ApplyMusic(const std::string &music);
+    // Stops the music of the previous scene and starts the new one's, in the
+    // version of the chosen sound card. keepPosition continues at the same time,
+    // for switching the sound card while the music plays.
+    void ApplyMusic(const std::string &music, bool keepPosition = false);
 
     // Applies the settings to audio, window and renderer
     void ApplySettings();
@@ -234,9 +284,21 @@ private:
 
     Settings settings;
 
+    // The widths from assets/fontSpacing.json, read once at the start and
+    // handed to every font, see ApplyTheme
+    FontSpacing fontSpacing;
+
+    // The music the current scene asks for, before the sound card picks its
+    // version
+    std::string sceneMusic;
+
     Assets assets;
     Renderer renderer;
     InputMap input;
+    MouseButtons mouse;
+
+    // The keys that were pressed in this frame, see TakePressedKeys
+    std::vector<int> pressedKeys;
 
     // Only used in the Development mode
     DevCamera devCamera;
@@ -249,6 +311,10 @@ private:
 
     SceneCatalog scenes;
     SceneBar sceneBar;
+
+    Console console;
+
+    ConsoleCommands commands;
 
     CursorState cursor = CursorState::Idle;
 

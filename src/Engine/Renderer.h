@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "raylib.h"
@@ -56,11 +57,21 @@ public:
 
     void BeginUI();
 
-    void EndDraw();
+    // screenLayer draws in window pixels, after the viewport was blown up to
+    // the window: for things that want the real pixels of the screen instead
+    // of the coarse grid of the viewport, e.g. the code editor.
+    void EndDraw(const std::function<void()> &screenLayer = {});
 
-    // Queues a health bar above the character, fraction from 0.0 to 1.0. It is
-    // drawn in the overlay layer, with the same depth sorting as the characters.
-    void SubmitHealthBar(const SpriteInstance &instance, float fraction);
+    // Queues a health bar above the character, fraction from 0.0 to 1.0 and
+    // maximum as the health it can have at most: the bar gets wider the more
+    // that is. It is drawn in the overlay layer, with the same depth sorting
+    // as the characters.
+    void SubmitHealthBar(const SpriteInstance &instance, float fraction, int maximum);
+
+    // The same for energy, in blue and a little flatter. Bars of one character
+    // stack upwards in the order they were submitted, so the energy bar belongs
+    // in front of the health bar.
+    void SubmitEnergyBar(const SpriteInstance &instance, float fraction, int maximum);
 
     // Draws a frame around every sprite in the Development mode
     void SetShowHitboxes(bool show);
@@ -71,12 +82,14 @@ public:
 
     int GetHeight() const;
 
-private:
-    // Whole number scale factor of the viewport in the window
-    int Scale() const;
+    // Whole number scale factor of the viewport in the window: one pixel of
+    // the viewport is this many pixels on the screen
+    int GetScale() const;
 
     // Black border left and top when the viewport does not fit exactly
-    Vector2 Letterbox() const;
+    Vector2 GetLetterbox() const;
+
+private:
 
     void DrawSelector(const SpriteInstance &character);
 
@@ -88,16 +101,24 @@ private:
 
     void DrawSubmitted();
 
-    void DrawHealthBar(const SpriteInstance &instance, float fraction);
-
-    void DrawHealthBars();
-
-    struct HealthBarEntry {
+    struct BarEntry {
         const SpriteInstance *instance;
         float fraction;
+
+        // Width in pixels, from the maximum value of the bar
+        int width;
+        int height;
+
+        Color empty;
+        Color full;
     };
 
-    std::vector<HealthBarEntry> healthBars;
+    // offset is the height of the bars of this character below this one
+    void DrawBar(const BarEntry &entry, int offset);
+
+    void DrawBars();
+
+    std::vector<BarEntry> bars;
 
     bool showHitboxes = false;
 

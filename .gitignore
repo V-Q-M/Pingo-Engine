@@ -150,6 +150,13 @@ Temporary Items
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,intellij
 
-### PingoLegends ###
+### PingoEngine ###
 # Settings written by the game
 settings.json
+
+log.txt
+
+# Markdown files, e.g. notes and CLAUDE.md
+*.md
+!README.md
+!scripts/Docs.md

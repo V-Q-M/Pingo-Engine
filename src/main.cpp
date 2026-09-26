@@ -6,7 +6,11 @@
 #include "Game/SplashScene.h"
 #include "Game/SceneKeys.h"
 
-int main() {
+#ifdef PINGO_SCREENSHOT_HARNESS
+#include "../tools/screenshots/ScreenshotHarness.h"
+#endif
+
+int main(int argc, char **argv) {
     // CMake sets the mode via PINGO_BUILD_MODE. For testing one can also be set
     // here, e.g. Config(BuildMode::Debugging)
     Config config = Config::Default();
@@ -37,6 +41,17 @@ int main() {
         // Like Unity: the engine logo first, then the entry point
         engine.ChangeScene<SplashScene>();
     }
+
+#ifdef PINGO_SCREENSHOT_HARNESS
+    // --harness <commands> <output folder>: the harness runs the frames instead
+    // of the normal loop, see tools/screenshots
+    if (argc >= 4 && std::string(argv[1]) == "--harness") {
+        return ScreenshotHarness::Run(engine, argv[2], argv[3]);
+    }
+#else
+    (void) argc;
+    (void) argv;
+#endif
 
     engine.Run();
 

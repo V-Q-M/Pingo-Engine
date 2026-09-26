@@ -75,30 +75,58 @@ bool ObjectEditor::IsDragging() const {
     return dragging;
 }
 
+void ObjectEditor::SetAddSections(std::vector<AddSection> sections) {
+    this->sections = sections.empty() ? std::vector<AddSection>{AddSection{}} : std::move(sections);
+
+    openSection = 0;
+
+    std::vector<std::string> labels;
+
+    for (const AddSection &section: this->sections) {
+        labels.push_back(section.label);
+    }
+
+    // With a single nameless section the menu shows its items right away
+    sectionMenu.SetItems(std::move(labels));
+
+    RebuildAddMenu();
+}
+
+ObjectEditor::AddSection &ObjectEditor::MainSection() {
+    return sections.front();
+}
+
 void ObjectEditor::SetTypeNames(std::vector<std::string> names) {
-    typeNames = std::move(names);
+    MainSection().items = std::move(names);
 
     RebuildAddMenu();
 }
 
 void ObjectEditor::SetAddExtra(std::string label, int variant) {
-    addExtraLabel = std::move(label);
-    addExtraVariant = variant;
+    MainSection().extra = std::move(label);
+    MainSection().extraVariant = variant;
 
     RebuildAddMenu();
 }
 
 void ObjectEditor::RebuildAddMenu() {
-    std::vector<std::string> items = typeNames;
+    const AddSection &section = sections[std::min(openSection, sections.size() - 1)];
 
-    if (!addExtraLabel.empty()) {
-        items.push_back(addExtraLabel);
+    std::vector<std::string> items = section.items;
+
+    if (!section.extra.empty()) {
+        items.push_back(section.extra);
     }
 
+    addMenu.SetTitle(section.label.empty() ? "Add" : section.label);
     addMenu.SetItems(std::move(items));
 
-    if (!addExtraLabel.empty()) {
-        addMenu.SetItemVariant(typeNames.size(), addExtraVariant);
+    for (std::size_t i = 0; i < section.itemVariants.size() && i < section.items.size(); i++) {
+        addMenu.SetItemVariant(i, section.itemVariants[i]);
+    }
+
+    if (!section.extra.empty()) {
+        addMenu.SetItemVariant(section.items.size(), section.extraVariant);
     }
 }
 
@@ -112,7 +140,8 @@ static void SetMenuItems(ContextMenu &menu, std::vector<std::string> labels, con
 }
 
 void ObjectEditor::SetTypeActions(std::vector<std::string> labels, const std::vector<char> &icons) {
-    SetMenuItems(typeMenu, std::move(labels), icons);
+    MainSection().actions = std::move(labels);
+    MainSection().actionIcons = icons;
 }
 
 void ObjectEditor::SetObjectActions(std::vector<std::string> labels, const std::vector<char> &icons) {
@@ -125,6 +154,10 @@ void ObjectEditor::SetObjectTitle(std::function<std::string(const EditableObject
 
 void ObjectEditor::SetObjectMenuFilter(std::function<bool(const EditableObject &)> filter) {
     objectMenuFilter = std::move(filter);
+}
+
+void ObjectEditor::SetObjectActionFilter(std::function<bool(const EditableObject &, std::size_t)> filter) {
+    objectActionFilter = std::move(filter);
 }
 
 void ObjectEditor::SetTopArrowClearance(float clearance) {
@@ -148,7 +181,7 @@ EditableObject *ObjectEditor::FindAt(Vector2 point, const std::vector<EditableOb
 }
 
 bool ObjectEditor::IsMenuOpen() const {
-    return addMenu.IsOpen() || typeMenu.IsOpen() || objectMenu.IsOpen();
+    return sectionMenu.IsOpen() || addMenu.IsOpen() || typeMenu.IsOpen() || objectMenu.IsOpen();
 }
 
 CursorState ObjectEditor::Cursor(const std::vector<EditableObject *> &instances, Vector2 mouseWorld) const {
@@ -158,7 +191,8 @@ CursorState ObjectEditor::Cursor(const std::vector<EditableObject *> &instances,
 
     // With a menu open only its items count, the objects below it rest
     if (IsMenuOpen()) {
-        bool hovering = addMenu.IsHovering() || typeMenu.IsHovering() || objectMenu.IsHovering();
+        bool hovering = sectionMenu.IsHovering() || addMenu.IsHovering() ||
+                        typeMenu.IsHovering() || objectMenu.IsHovering();
 
         return hovering ? CursorState::Hover : CursorState::Idle;
     }
@@ -167,6 +201,7 @@ CursorState ObjectEditor::Cursor(const std::vector<EditableObject *> &instances,
 }
 
 void ObjectEditor::CloseMenu() {
+    sectionMenu.Close();
     addMenu.Close();
     typeMenu.Close();
     objectMenu.Close();
@@ -206,20 +241,34 @@ void ObjectEditor::HandleRightClick(const std::vector<EditableObject *> &instanc
         input.mouseViewport.y + OBJECT_MENU_OFFSET
     };
 
-    // In the open add menu a right click on a type opens its menu.
+    // In the open add menu a right click on an item opens its menu.
     // Nothing happens on the title or the extra item.
     if (addMenu.IsOpen() && CheckCollisionPointRec(input.mouseViewport, addMenu.Bounds(font))) {
+        const AddSection &section = sections[openSection];
+
         int item = addMenu.ItemAt(input.mouseViewport, font);
 
         typeMenu.Close();
 
-        if (item != ContextMenu::NOTHING && static_cast<std::size_t>(item) < typeNames.size() && typeMenu.HasItems()) {
+        if (item != ContextMenu::NOTHING && static_cast<std::size_t>(item) < section.items.size() &&
+            !section.actions.empty()) {
             typeMenuIndex = static_cast<std::size_t>(item);
 
-            typeMenu.SetTitle(typeNames[typeMenuIndex]);
+            SetMenuItems(typeMenu, section.actions, section.actionIcons);
+
+            for (std::size_t i = 0; i < section.actions.size(); i++) {
+                typeMenu.SetItemEnabled(i, !section.actionFilter || section.actionFilter(typeMenuIndex, i));
+            }
+
+            typeMenu.SetTitle(section.items[typeMenuIndex]);
             typeMenu.Open(menuPosition, input.viewWidth, input.viewHeight, font);
         }
 
+        return;
+    }
+
+    // The menu with the section labels lies below the add menu
+    if (sectionMenu.IsOpen() && CheckCollisionPointRec(input.mouseViewport, sectionMenu.Bounds(font))) {
         return;
     }
 
@@ -239,8 +288,19 @@ void ObjectEditor::HandleRightClick(const std::vector<EditableObject *> &instanc
             menuTarget = hit;
 
             objectMenu.SetTitle(objectTitle ? objectTitle(*hit) : "");
+
+            for (std::size_t i = 0; i < objectMenu.ItemCount(); i++) {
+                objectMenu.SetItemEnabled(i, !objectActionFilter || objectActionFilter(*hit, i));
+            }
+
             objectMenu.Open(menuPosition, input.viewWidth, input.viewHeight, font);
         }
+    } else if (sections.size() > 1) {
+        // More than one section: their labels come first, see SetAddSections
+        addPosition = Renderer::SnapToPixel(input.mouseWorld);
+
+        sectionMenu.SetTitle("Add");
+        sectionMenu.Open(menuPosition, input.viewWidth, input.viewHeight, font);
     } else if (addMenu.HasItems()) {
         addPosition = Renderer::SnapToPixel(input.mouseWorld);
         addMenu.Open(menuPosition, input.viewWidth, input.viewHeight, font);
@@ -276,6 +336,7 @@ ObjectEditor::Changes ObjectEditor::Update(const std::vector<EditableObject *> &
         if (action != ContextMenu::NOTHING) {
             changes.typeAction = action;
             changes.typeIndex = typeMenuIndex;
+            changes.actionSection = static_cast<int>(openSection);
         }
 
         DiscardTypedCharacters();
@@ -305,7 +366,31 @@ ObjectEditor::Changes ObjectEditor::Update(const std::vector<EditableObject *> &
 
         if (type != ContextMenu::NOTHING) {
             changes.addType = type;
+            changes.addSection = static_cast<int>(openSection);
             changes.addPosition = addPosition;
+        }
+
+        DiscardTypedCharacters();
+
+        return changes;
+    }
+
+    // Choosing a section opens its items where the section menu stood
+    if (sectionMenu.IsOpen()) {
+        Vector2 position = {sectionMenu.Bounds(font).x, sectionMenu.Bounds(font).y};
+
+        int section = sectionMenu.Update(input.mouseViewport, input.leftClicked, font);
+
+        if (section != ContextMenu::NOTHING && static_cast<std::size_t>(section) < sections.size()) {
+            openSection = static_cast<std::size_t>(section);
+
+            RebuildAddMenu();
+
+            sectionMenu.Close();
+
+            if (addMenu.HasItems()) {
+                addMenu.Open(position, input.viewWidth, input.viewHeight, font);
+            }
         }
 
         DiscardTypedCharacters();
@@ -340,6 +425,11 @@ ObjectEditor::Changes ObjectEditor::Update(const std::vector<EditableObject *> &
             selected->SetEditPosition(target);
             changes.moved = true;
         }
+    }
+
+    // While the console or a form owns the keyboard, only the mouse is left
+    if (input.keyboardBusy) {
+        return changes;
     }
 
     if (selected != nullptr) {
@@ -421,8 +511,8 @@ void ObjectEditor::Draw(const FontRenderer &font, const std::string &caption) co
 
     Vector2 position = selected->EditPosition();
 
-    std::string coordinates = "X " + std::to_string(std::lround(position.x)) +
-                              " Y " + std::to_string(std::lround(position.y));
+    std::string coordinates = "X: " + std::to_string(std::lround(position.x)) +
+                              " Y: " + std::to_string(std::lround(position.y));
 
     float top = box.y + box.height + OBJECT_ARROW_GAP + glyphHeight + OBJECT_LINE_GAP;
 
@@ -435,7 +525,7 @@ void ObjectEditor::Draw(const FontRenderer &font, const std::string &caption) co
 
 void ObjectEditor::DrawHelp(const FontRenderer &font, int viewHeight, const std::string &extra) const {
     std::string mouse = "Klick wählen, ziehen  Rechtsklick Menü";
-    std::string keys = "Pfeile bewegen  Shift x10";
+    std::string keys = std::string("Pfeile bewegen  Shift ") + FontRenderer::CROSS + "10";
 
     float keysTop = static_cast<float>(viewHeight) - OBJECT_HELP_BOTTOM_OFFSET;
     float mouseTop = keysTop - font.LetterHeight() - 4.0f;
@@ -449,6 +539,7 @@ void ObjectEditor::DrawHelp(const FontRenderer &font, int viewHeight, const std:
 }
 
 void ObjectEditor::DrawMenu(const FontRenderer &font) const {
+    sectionMenu.Draw(font);
     addMenu.Draw(font);
     objectMenu.Draw(font);
 

@@ -1,0 +1,160 @@
+# Group "scenes": dev-main-menu, hub-dev, combat-dev, new-scene-type,
+# new-scene-template, new-scene-options, new-tileset-forest, tab-menu,
+# tab-menu-locked, edit-background, shrink-dialog, edit-menu-entry,
+# delete-scene, new-normal-none. One linear story, starting in the Main Menu
+# with the three stock scenes.
+
+wait 40
+
+# ---- plain views of the three stock scenes (only three tabs so far)
+move 900 500
+wait 30
+shot dev-main-menu
+
+click 370 32
+wait 30
+move 1225 410
+wait 30
+shot hub-dev
+
+click 540 32
+wait 30
+move 1150 420
+wait 30
+shot combat-dev
+
+click 140 32
+wait 30
+move 900 500
+wait 20
+
+# ---- new scene: name and type
+click 682 32
+wait 40
+type Forest
+wait 10
+click 620 400
+wait 20
+move 670 592
+wait 15
+shot new-scene-type
+click 670 592
+wait 20
+
+# ---- template dropdown
+click 465 480
+wait 40
+click 700 200
+wait 20
+move 770 395
+wait 15
+shot new-scene-template
+click 770 395
+wait 20
+
+# ---- options (columns and rows come from the Default template: 20 x 12)
+move 430 600
+wait 15
+shot new-scene-options
+click 430 600
+wait 50
+move 1100 400
+wait 30
+shot new-tileset-forest
+
+# ---- tab menu of Forest
+rclick 760 32
+wait 30
+move 850 228
+wait 15
+shot tab-menu
+
+# ---- shrink Forest: Edit, scroll to rows and columns, Save asks first
+click 850 228
+wait 40
+move 400 300
+scroll -5
+wait 10
+scroll -30
+wait 15
+click 590 280
+key backspace backspace backspace backspace
+type 6
+click 590 200
+key backspace backspace backspace backspace
+type 10
+move 450 320
+wait 10
+click 360 600
+wait 40
+move 570 490
+wait 15
+shot shrink-dialog
+# No leaves the dialogs without saving
+click 738 488
+wait 30
+
+# ---- locked tab: Lock Forest, open its menu again, then unlock it
+rclick 760 32
+wait 30
+click 800 288
+wait 30
+rclick 760 32
+wait 30
+move 850 288
+wait 15
+shot tab-menu-locked
+click 850 288
+wait 30
+
+# ---- delete dialog of Forest, answer No
+rclick 760 32
+wait 30
+click 850 348
+wait 40
+move 740 492
+wait 15
+shot delete-scene
+click 735 488
+wait 30
+
+# ---- Main Menu: unlock, edit (entry point, background dropdown)
+rclick 140 32
+wait 30
+click 120 288
+wait 30
+rclick 140 32
+wait 30
+click 120 228
+wait 40
+move 360 566
+wait 15
+shot edit-menu-entry
+click 660 320
+wait 20
+move 790 520
+wait 15
+shot edit-background
+click 790 520
+wait 10
+click 560 560
+wait 30
+
+# ---- new Normal scene from the None template
+click 900 32
+wait 40
+type Crystal Caverns
+wait 10
+click 620 400
+wait 20
+click 600 655
+wait 20
+click 465 480
+wait 40
+click 490 480
+wait 50
+move 1100 400
+wait 30
+shot new-normal-none
+
+quit

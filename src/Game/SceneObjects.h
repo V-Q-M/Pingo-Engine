@@ -1,22 +1,29 @@
 #pragma once
 
+#include <set>
 #include <string>
 #include <vector>
 
 #include "raylib.h"
+
+#include "CharacterDefinition.h"
+#include "ObjectGroups.h"
 
 // Where a character stands in a scene
 struct ObjectPlacement {
     // Character file, e.g. "characters/pingo.json"
     std::string character;
 
-    // "heroes" or "enemies"
-    std::string team = "enemies";
+    // Id of an ObjectGroup, e.g. "ally"
+    std::string group = ObjectGroups::ENEMY;
 
     Vector2 position{0.0f, 0.0f};
 
     // Health at the start, -1 for full
     int health = -1;
+
+    // Name and look of this one character, where they differ from the type
+    CharacterOverrides overrides;
 
     // For the undo history
     bool operator==(const ObjectPlacement &other) const;
@@ -43,4 +50,7 @@ public:
     // Saves like SaveAsset into both asset folders. Anything else in the file,
     // e.g. the music, is kept.
     static bool Save(const std::string &filename, const std::vector<ObjectPlacement> &placements);
+
+    // The ids of all groups a character belongs to, in every scene file
+    static std::set<std::string> UsedGroups();
 };

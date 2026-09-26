@@ -21,7 +21,7 @@ TileSet::TileSet(int tileSize)
       tiles(MAX_TILE + 1) {
 }
 
-TileSet TileSet::Load(Assets &assets, const std::string &filename) {
+TileSet TileSet::Load(Assets &assets, const std::string &filename, const std::string &atlas) {
     std::ifstream file("assets/" + filename);
 
     if (!file) {
@@ -50,7 +50,15 @@ TileSet TileSet::Load(Assets &assets, const std::string &filename) {
             info.name = item.value().value("name", std::string());
         }
 
-        Texture2D &texture = assets.Texture().Get(j.at("texture").get<std::string>());
+        // The atlas chosen from outside, otherwise the one the file names
+        std::string atlasFile = atlas.empty() ? j.value("texture", std::string()) : atlas;
+
+        if (atlasFile.empty()) {
+            TraceLog(LOG_WARNING, "TILESET: [%s] kein Atlas, zeichne Platzhalter", filename.c_str());
+            return set;
+        }
+
+        Texture2D &texture = assets.Texture().Get(atlasFile);
 
         if (texture.id != 0) {
             set.texture = &texture;

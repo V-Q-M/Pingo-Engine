@@ -9,11 +9,18 @@ MusicManager::~MusicManager() {
     }
 }
 
-void MusicManager::Play(const std::string &filename) {
+void MusicManager::Play(const std::string &filename, bool keepPosition) {
     if (loaded && currentTrack == filename) {
         return;
     }
+
+    float position = 0.0f;
+
     if (loaded) {
+        if (keepPosition) {
+            position = GetMusicTimePlayed(music);
+        }
+
         StopMusicStream(music);
         UnloadMusicStream(music);
     }
@@ -23,6 +30,10 @@ void MusicManager::Play(const std::string &filename) {
     music.looping = true;
 
     PlayMusicStream(music);
+
+    if (position > 0.0f && position < GetMusicTimeLength(music)) {
+        SeekMusicStream(music, position);
+    }
 
     SetMusicVolume(music, volume);
 

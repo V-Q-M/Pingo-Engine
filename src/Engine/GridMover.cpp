@@ -20,6 +20,10 @@ bool GridMover::IsMoving() const {
     return moving;
 }
 
+bool GridMover::IsPushingAgainst(int column, int row) const {
+    return pushing && pushColumn == column && pushRow == row;
+}
+
 bool GridMover::TryStart(Vector2 direction) {
     int stepX = direction.x > 0.0f ? 1 : (direction.x < 0.0f ? -1 : 0);
     int stepY = direction.y > 0.0f ? 1 : (direction.y < 0.0f ? -1 : 0);
@@ -34,6 +38,13 @@ bool GridMover::TryStart(Vector2 direction) {
         targetColumn = column;
         targetRow = row + stepY;
     } else {
+        // The horizontal direction wins here as well
+        if (stepX != 0 || stepY != 0) {
+            pushing = true;
+            pushColumn = column + stepX;
+            pushRow = stepX != 0 ? row : row + stepY;
+        }
+
         return false;
     }
 
@@ -43,6 +54,8 @@ bool GridMover::TryStart(Vector2 direction) {
 }
 
 void GridMover::Update(SpriteInstance &instance, Vector2 direction, float speed, float dt) {
+    pushing = false;
+
     if (!moving) {
         progress = 0.0f;
         TryStart(direction);

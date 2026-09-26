@@ -10,7 +10,8 @@
 // Confirmation in the middle of the screen, e.g. "Are you sure" before deleting.
 //
 // Lives in the UI layer, dims everything behind it and blocks it until Yes
-// or No is clicked. A click next to it does nothing.
+// or No is clicked. A click next to it does nothing. The two buttons can be
+// called differently, e.g. Confirm and Cancel, see SetButtons.
 class ConfirmDialog {
 public:
     enum class Result {
@@ -20,7 +21,7 @@ public:
     };
 
     // title is shown at the top, e.g. what is being deleted, message below. A \n in
-    // message starts a new line. titleVariant is the font color of the
+    // message starts a new line, an empty message leaves out its row. titleVariant is the font color of the
     // title, e.g. FontVariant::Red before deleting.
     void Open(std::string title,
               std::string message,
@@ -28,6 +29,10 @@ public:
               int viewHeight,
               const FontRenderer &font,
               int titleVariant = FontVariant::Cyan);
+
+    // Labels of the two buttons, for this and every later Open. Default:
+    // Yes and No.
+    void SetButtons(std::string yes, std::string no);
 
     void Close();
 
@@ -60,6 +65,9 @@ private:
     std::vector<std::string> lines;
 
     int titleVariant = FontVariant::Cyan;
+
+    std::string yesLabel = "Yes";
+    std::string noLabel = "No";
 
     bool open = false;
 

@@ -66,6 +66,9 @@ void Menu::Open() {
 void Menu::Close() {
     open = false;
     hovered = {};
+
+    dropdown.Close();
+    dropdownItem = NOTHING;
 }
 
 void Menu::Toggle() {
@@ -81,11 +84,15 @@ bool Menu::IsOpen() const {
 }
 
 bool Menu::IsHovering() const {
-    return open && hovered.item != NOTHING;
+    return open && (hovered.item != NOTHING || dropdown.IsHovering());
 }
 
 bool Menu::IsCentered(const Entry &entry) {
-    return entry.value.empty() && !entry.adjustable;
+    return entry.value.empty() && !entry.adjustable && entry.options.empty();
+}
+
+bool Menu::IsDropdown(const Entry &entry) {
+    return !entry.options.empty();
 }
 
 int Menu::EntryScale(const Entry &entry) const {
@@ -98,6 +105,18 @@ int Menu::TextWidth(const std::string &text, int textScale) const {
 
 int Menu::ValueWidth(const Entry &entry) const {
     int entryScale = EntryScale(entry);
+
+    // As wide as the longest option, so the arrow stays in its place
+    if (IsDropdown(entry)) {
+        int widest = TextWidth(entry.value, entryScale);
+
+        for (const std::string &option: entry.options) {
+            widest = std::max(widest, TextWidth(option, entryScale));
+        }
+
+        return widest + font.Advance(MENU_SPACING) * entryScale +
+               TextWidth(std::string(1, FontRenderer::ARROW_DOWN), entryScale);
+    }
 
     if (!entry.adjustable) {
         return TextWidth(entry.value, entryScale);
@@ -256,13 +275,60 @@ Menu::Event Menu::Update(Vector2 mousePosition, bool clicked, int viewWidth, int
         return {};
     }
 
-    hovered = HitTest(ComputeLayout(viewWidth, viewHeight), mousePosition);
+    // An open dropdown takes the mouse. A click next to it only closes it.
+    if (dropdown.IsOpen()) {
+        hovered = {};
+
+        int option = dropdown.Update(mousePosition, clicked, font);
+
+        Event event;
+
+        if (option != ContextMenu::NOTHING) {
+            event = {dropdownItem, MenuAction::Choose, option};
+        }
+
+        if (!dropdown.IsOpen()) {
+            dropdownItem = NOTHING;
+        }
+
+        return event;
+    }
+
+    Layout layout = ComputeLayout(viewWidth, viewHeight);
+
+    hovered = HitTest(layout, mousePosition);
 
     if (!clicked) {
         return {};
     }
 
+    if (hovered.item != NOTHING && IsDropdown(entries[static_cast<std::size_t>(hovered.item)])) {
+        OpenDropdown(layout, static_cast<std::size_t>(hovered.item), viewWidth, viewHeight);
+        return {};
+    }
+
     return hovered;
+}
+
+void Menu::OpenDropdown(const Layout &layout, std::size_t index, int viewWidth, int viewHeight) {
+    const Entry &entry = entries[index];
+
+    dropdown.SetTitle("");
+    dropdown.SetItems(entry.options);
+
+    // The current option stands out in the title colour, yellow stays for hovering
+    for (std::size_t i = 0; i < entry.options.size(); i++) {
+        dropdown.SetItemVariant(i, entry.options[i] == entry.value ? titleVariant : -1);
+    }
+
+    Rectangle value = ValueBounds(layout, index);
+
+    // As wide as the value column, with the options right below the value text
+    dropdown.SetMinWidth(value.width);
+    dropdown.Open({value.x - ContextMenu::PADDING, value.y + value.height + 2.0f}, viewWidth, viewHeight, font);
+
+    dropdownItem = static_cast<int>(index);
+    hovered = {};
 }
 
 void Menu::Draw(int viewWidth, int viewHeight) const {
@@ -310,6 +376,22 @@ void Menu::Draw(int viewWidth, int viewHeight) const {
 
         font.Draw(entry.label, {row.x, row.y}, idleVariant, MENU_SPACING, entryScale);
 
+        if (IsDropdown(entry)) {
+            Rectangle value = ValueBounds(layout, i);
+            bool active = entryHovered || dropdownItem == static_cast<int>(i);
+            int variant = active ? hoverVariant : idleVariant;
+
+            font.Draw(entry.value, {value.x, value.y}, variant, MENU_SPACING, entryScale);
+
+            // The arrow sits at the right edge of the column
+            std::string arrow(1, FontRenderer::ARROW_DOWN);
+            float arrowX = value.x + value.width - static_cast<float>(TextWidth(arrow, entryScale));
+
+            font.Draw(arrow, {arrowX, value.y}, variant, MENU_SPACING, entryScale);
+
+            continue;
+        }
+
         if (!entry.adjustable) {
             Rectangle value = ValueBounds(layout, i);
 
@@ -346,4 +428,7 @@ void Menu::Draw(int viewWidth, int viewHeight) const {
             entryScale
         );
     }
+
+    // Last, so the options lie above the items below the dropdown
+    dropdown.Draw(font);
 }

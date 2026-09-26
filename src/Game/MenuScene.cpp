@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <utility>
 
+#include "SceneObjects.h"
 #include "Themes.h"
 #include "Engine/AssetFile.h"
 #include "Engine/EditStatus.h"
@@ -19,13 +20,16 @@ constexpr float DUPLICATE_OFFSET = 10.0f;
 // Like the add menu, the scene menu opens slightly offset
 constexpr float MENU_OFFSET = 5.0f;
 
-static SceneOptions MenuOptions(const std::string &id) {
+static SceneOptions MenuOptions(Engine &engine, const std::string &id) {
     SceneOptions options;
 
     options.id = id;
     options.pauseMenu = false;
     options.movement = false;
     options.theme = DefaultTheme();
+
+    // Like every scene, a menu chooses its music in the scene bar
+    options.music = engine.GetScenes().Choice(id, SceneCatalog::MUSIC_CHOICE);
 
     return options;
 }
@@ -38,7 +42,7 @@ static std::string Trimmed(std::string text) {
 }
 
 MenuScene::MenuScene(Engine &engine, const std::string &id)
-    : Scene(engine, MenuOptions(id)),
+    : Scene(engine, MenuOptions(engine, id)),
       layoutFile("scenes/" + id + ".json") {
 }
 
@@ -66,8 +70,8 @@ void MenuScene::Enter() {
 
     editor.SetTypeNames({"Text", "Button"});
     editor.SetObjectActions(
-        {"Edit", "Duplicate", "Delete"},
-        {FontRenderer::ICON_EDIT, FontRenderer::ICON_DUPLICATE, FontRenderer::ICON_DELETE}
+        {"Duplicate", "Edit", "Delete"},
+        {FontRenderer::ICON_DUPLICATE, FontRenderer::ICON_EDIT, FontRenderer::ICON_DELETE}
     );
 
     // No health bar sits above texts, so the top arrow may come closer
@@ -169,7 +173,7 @@ void MenuScene::Update(float) {
         engine.RequestCursor(CursorState::Hover);
     }
 
-    if (hoveredButton >= 0 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (hoveredButton >= 0 && engine.GetMouse().IsLeftClicked()) {
         Activate(canvas.At(static_cast<std::size_t>(hoveredButton)).Element());
     }
 }
@@ -181,7 +185,7 @@ void MenuScene::UpdateDevelopment(float) {
     // The elements lie on the screen layer, so the editor works in viewport
     // coordinates
     Vector2 mouse = renderer.MouseViewportPosition();
-    bool leftClicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    bool leftClicked = engine.GetMouse().IsLeftClicked();
 
     if (textForm.IsOpen()) {
         if (textForm.Update(mouse, leftClicked, font) == FormWindow::Result::Confirmed) {
@@ -252,8 +256,8 @@ void MenuScene::UpdateDevelopment(float) {
     input.mouseWorld = mouse;
     input.mouseViewport = mouse;
     input.leftClicked = leftClicked;
-    input.leftDown = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
-    input.rightClicked = IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
+    input.leftDown = engine.GetMouse().IsLeftDown();
+    input.rightClicked = engine.GetMouse().IsRightClicked();
     input.viewWidth = renderer.GetWidth();
     input.viewHeight = renderer.GetHeight();
 
